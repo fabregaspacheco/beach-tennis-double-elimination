@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { Category, Match, Team, Tournament } from './types';
 import { createId } from './utils/id';
 import { shuffle } from './utils/shuffle';
@@ -26,6 +26,11 @@ export default function App() {
   const [modalError, setModalError] = useState<string | null>(null);
   const [syncReady, setSyncReady] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  // Firestore echoes our own writes back through the same listener (that's how it stays live
+  // for other devices). This flag tells the save-effect below "this change just arrived FROM
+  // Firestore, don't write it right back" — without it, every remote update triggers a save,
+  // which triggers another remote update, forever.
+  const isApplyingRemoteRef = useRef(false);
 
   // Live-subscribes to the cloud database: any change made here, or from any other device
   // looking at the same tournament, shows up automatically. We hold off writing anything back
@@ -34,6 +39,7 @@ export default function App() {
   useEffect(() => {
     const unsubscribe = subscribeTournaments(
       (remote) => {
+        isApplyingRemoteRef.current = true;
         setTournaments(remote);
         setSyncReady(true);
         setSyncError(null);
@@ -45,6 +51,10 @@ export default function App() {
 
   useEffect(() => {
     if (!syncReady) return;
+    if (isApplyingRemoteRef.current) {
+      isApplyingRemoteRef.current = false;
+      return;
+    }
     saveTournaments(tournaments).catch(() =>
       setSyncError('Não foi possível salvar as últimas alterações. Verifique sua internet.'),
     );
