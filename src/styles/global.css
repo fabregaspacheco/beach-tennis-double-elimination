@@ -532,6 +532,20 @@ button {
   margin-top: 16px;
 }
 
+.sync-banner {
+  margin: 0 0 14px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: var(--teal-light);
+  color: var(--teal-dark);
+}
+.sync-banner--error {
+  background: #fde2e2;
+  color: #9c2b2b;
+}
+
 /* ---- draw animation ---- */
 .draw-modal {
   position: relative;

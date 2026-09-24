@@ -4,7 +4,7 @@ import { createId } from './utils/id';
 import { shuffle } from './utils/shuffle';
 import { generateDoubleElimination } from './bracket/generateBracket';
 import { clearMatchResult, reportResult } from './bracket/reportResult';
-import { loadTournaments, saveTournaments } from './storage/tournamentStorage';
+import { subscribeTournaments, saveTournaments } from './storage/tournamentStorage';
 import { CategoryTabs } from './components/CategoryTabs';
 import { TournamentSetup } from './components/TournamentSetup';
 import { BracketBoard } from './components/BracketBoard';
@@ -17,17 +17,38 @@ function todayIso(): string {
 }
 
 export default function App() {
-  const [tournaments, setTournaments] = useState<Tournament[]>(() => loadTournaments());
+  const [tournaments, setTournaments] = useState<Tournament[]>([]);
   const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [drawError, setDrawError] = useState<string | null>(null);
   const [pendingDraw, setPendingDraw] = useState<{ teams: Team[]; matches: Match[] } | null>(null);
   const [activeMatch, setActiveMatch] = useState<Match | null>(null);
   const [modalError, setModalError] = useState<string | null>(null);
+  const [syncReady, setSyncReady] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
+
+  // Live-subscribes to the cloud database: any change made here, or from any other device
+  // looking at the same tournament, shows up automatically. We hold off writing anything back
+  // (see the effect below) until this first snapshot arrives, so we never overwrite the remote
+  // data with the empty local state the app starts with.
+  useEffect(() => {
+    const unsubscribe = subscribeTournaments(
+      (remote) => {
+        setTournaments(remote);
+        setSyncReady(true);
+        setSyncError(null);
+      },
+      () => setSyncError('Não foi possível conectar ao banco de dados. Verifique sua internet e tente novamente.'),
+    );
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
-    saveTournaments(tournaments);
-  }, [tournaments]);
+    if (!syncReady) return;
+    saveTournaments(tournaments).catch(() =>
+      setSyncError('Não foi possível salvar as últimas alterações. Verifique sua internet.'),
+    );
+  }, [tournaments, syncReady]);
 
   const selectedTournament = useMemo(
     () => tournaments.find((t) => t.id === selectedTournamentId) ?? null,
@@ -167,7 +188,9 @@ export default function App() {
           <h1>🏖️ Torneios de Beach Tennis</h1>
           <p>Chaveamento double elimination — sorteio, resultados e acompanhamento em tempo real.</p>
         </header>
+        {syncError && <p className="sync-banner sync-banner--error">{syncError}</p>}
         <main className="tournament-list-page">
+          {!syncReady && !syncError && <p className="sync-banner">Carregando torneios…</p>}
           <button type="button" className="btn btn--accent" onClick={handleCreateTournament}>
             + Novo torneio
           </button>
@@ -192,7 +215,9 @@ export default function App() {
                 </button>
               </li>
             ))}
-            {tournaments.length === 0 && <li className="tournament-list-empty">Nenhum torneio criado ainda.</li>}
+            {syncReady && tournaments.length === 0 && (
+              <li className="tournament-list-empty">Nenhum torneio criado ainda.</li>
+            )}
           </ul>
         </main>
       </div>
@@ -215,6 +240,8 @@ export default function App() {
         <h1>{selectedTournament.name}</h1>
         <p>{selectedTournament.date}</p>
       </header>
+
+      {syncError && <p className="sync-banner sync-banner--error">{syncError}</p>}
 
       <CategoryTabs
         categories={selectedTournament.categories}
