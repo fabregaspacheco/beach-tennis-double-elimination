@@ -4,12 +4,12 @@ import { initializeFirestore, persistentLocalCache, persistentSingleTabManager }
 // Firebase's web config is not a secret — it's meant to be shipped in client code. Access
 // control is enforced by Firestore security rules (see firestore.rules), not by hiding this.
 const firebaseConfig = {
-  apiKey: 'REPLACE_ME',
-  authDomain: 'REPLACE_ME.firebaseapp.com',
-  projectId: 'REPLACE_ME',
-  storageBucket: 'REPLACE_ME.firebasestorage.app',
-  messagingSenderId: 'REPLACE_ME',
-  appId: 'REPLACE_ME',
+  apiKey: 'AIzaSyAyxjdpl1mPcy8ZFct2gaPwY1vuZpnQ3Eg',
+  authDomain: 'bt-double-elimination.firebaseapp.com',
+  projectId: 'bt-double-elimination',
+  storageBucket: 'bt-double-elimination.firebasestorage.app',
+  messagingSenderId: '818742607551',
+  appId: '1:818742607551:web:cc4788f337be505d7e100a',
 };
 
 export const firebaseApp = initializeApp(firebaseConfig);
