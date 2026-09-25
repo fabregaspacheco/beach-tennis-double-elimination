@@ -200,6 +200,30 @@ button {
   border-style: dashed;
   color: var(--teal-dark);
 }
+.category-tab-wrap {
+  position: relative;
+  display: inline-flex;
+}
+.category-tab-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+.category-tab-remove:hover {
+  color: white;
+  background: var(--danger);
+  border-color: var(--danger);
+}
 
 /* ---- setup panel ---- */
 .tournament-main {

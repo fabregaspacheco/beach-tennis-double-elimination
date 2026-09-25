@@ -5,21 +5,41 @@ interface CategoryTabsProps {
   activeCategoryId: string | null;
   onSelect: (categoryId: string) => void;
   onAddCategory: (name: string) => void;
+  onRemoveCategory: (categoryId: string) => void;
 }
 
-export function CategoryTabs({ categories, activeCategoryId, onSelect, onAddCategory }: CategoryTabsProps) {
+export function CategoryTabs({
+  categories,
+  activeCategoryId,
+  onSelect,
+  onAddCategory,
+  onRemoveCategory,
+}: CategoryTabsProps) {
   return (
     <div className="category-tabs">
       {categories.map((c) => (
-        <button
-          key={c.id}
-          type="button"
-          className={`category-tab${c.id === activeCategoryId ? ' category-tab--active' : ''}`}
-          onClick={() => onSelect(c.id)}
-        >
-          {c.name}
-          {c.championTeamId && <span className="category-tab-trophy"> 🏆</span>}
-        </button>
+        <span key={c.id} className="category-tab-wrap">
+          <button
+            type="button"
+            className={`category-tab${c.id === activeCategoryId ? ' category-tab--active' : ''}`}
+            onClick={() => onSelect(c.id)}
+          >
+            {c.name}
+            {c.championTeamId && <span className="category-tab-trophy"> 🏆</span>}
+          </button>
+          <button
+            type="button"
+            className="category-tab-remove"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRemoveCategory(c.id);
+            }}
+            title={`Excluir categoria ${c.name}`}
+            aria-label={`Excluir categoria ${c.name}`}
+          >
+            ×
+          </button>
+        </span>
       ))}
       <button
         type="button"

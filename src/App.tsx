@@ -143,6 +143,26 @@ export default function App() {
     setSelectedCategoryId(category.id);
   }
 
+  function handleRemoveCategory(categoryId: string) {
+    if (!selectedTournament) return;
+    const category = selectedTournament.categories.find((c) => c.id === categoryId);
+    if (!category) return;
+    const hasBracket = category.matches.length > 0;
+    const warning = hasBracket
+      ? `Excluir a categoria "${category.name}"? A chave já sorteada, todos os resultados e as duplas dela serão perdidos. Essa ação não pode ser desfeita.`
+      : `Excluir a categoria "${category.name}"? Essa ação não pode ser desfeita.`;
+    if (!window.confirm(warning)) return;
+    updateTournament(selectedTournament.id, (t) => ({
+      ...t,
+      categories: t.categories.filter((c) => c.id !== categoryId),
+    }));
+    if (selectedCategoryId === categoryId) {
+      const remaining = selectedTournament.categories.filter((c) => c.id !== categoryId);
+      setSelectedCategoryId(remaining[0]?.id ?? null);
+      setDrawError(null);
+    }
+  }
+
   function handleAddTeam(name: string) {
     if (!selectedTournament || !selectedCategory) return;
     updateCategory(selectedTournament.id, selectedCategory.id, (c) => ({
@@ -366,6 +386,7 @@ export default function App() {
           setDrawError(null);
         }}
         onAddCategory={handleAddCategory}
+        onRemoveCategory={handleRemoveCategory}
       />
 
       <main className="tournament-main">
