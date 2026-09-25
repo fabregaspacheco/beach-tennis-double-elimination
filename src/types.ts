@@ -63,6 +63,13 @@ export interface Sponsor {
   logoPath: string;
 }
 
+/**
+ * 'created' and 'in_progress' are never written — they're the default, derived from whether any
+ * category has a drawn bracket yet (see `getTournamentStatus`). Only 'completed' is ever actually
+ * stored, since that's the one deliberate action that freezes the tournament against edits.
+ */
+export type TournamentStatus = 'created' | 'in_progress' | 'completed';
+
 export interface Tournament {
   id: string;
   name: string;
@@ -70,4 +77,5 @@ export interface Tournament {
   categories: Category[];
   /** Optional: tournaments created before this feature existed won't have it. */
   sponsors?: Sponsor[];
+  status?: TournamentStatus;
 }

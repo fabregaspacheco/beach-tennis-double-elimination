@@ -93,6 +93,36 @@ button {
   right: var(--page-gutter);
 }
 
+.tournament-status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+.status-badge--created {
+  background: var(--sand-dark);
+  color: var(--ink-soft);
+}
+.status-badge--in_progress {
+  background: var(--teal-light);
+  color: var(--teal-dark);
+}
+.status-badge--completed {
+  background: #dcf1dd;
+  color: #2e7d32;
+}
+
 /* ---- buttons ---- */
 .btn {
   border: none;
@@ -195,6 +225,9 @@ button {
   background: var(--teal-light);
 }
 .tournament-list-item-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
   font-weight: 600;
   color: var(--ink);
 }
@@ -933,6 +966,17 @@ button {
 .sync-banner--error {
   background: #fde2e2;
   color: #9c2b2b;
+}
+
+.lock-banner {
+  margin: 0 0 14px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  background: var(--sand-dark);
+  color: var(--ink-soft);
+  border: 1px solid var(--line);
 }
 
 /* ---- draw animation ---- */

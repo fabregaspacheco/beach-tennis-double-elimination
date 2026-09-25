@@ -12,7 +12,7 @@ import {
 
 interface BracketBoardProps {
   category: Category;
-  onMatchClick: (match: Match) => void;
+  onMatchClick?: (match: Match) => void;
   onSetMatchTime?: (matchId: string, time: string) => void;
 }
 
@@ -28,7 +28,7 @@ function BracketColumn({
   matches: Match[];
   label: string;
   round: number;
-  onMatchClick: (match: Match) => void;
+  onMatchClick?: (match: Match) => void;
   onSetMatchTime?: (matchId: string, time: string) => void;
 }) {
   const gap = 12 * 2 ** (round - 1);

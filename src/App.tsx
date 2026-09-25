@@ -16,6 +16,7 @@ import { SponsorsPanel } from './components/SponsorsPanel';
 import { shareNodeAsImage } from './utils/shareSnapshot';
 import { uploadSponsorLogo } from './utils/sponsorLogo';
 import { roundToQuarterHour } from './utils/time';
+import { getTournamentStatus, TOURNAMENT_STATUS_LABEL } from './utils/tournamentStatus';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -82,6 +83,9 @@ export default function App() {
     [selectedTournament, selectedCategoryId],
   );
 
+  const tournamentStatus = selectedTournament ? getTournamentStatus(selectedTournament) : null;
+  const isLocked = tournamentStatus === 'completed';
+
   // Every sponsor ever added to any tournament, one per name (most recent upload wins), minus
   // whichever are already on the current tournament — lets an admin reuse a logo instead of
   // uploading the same file again for every new tournament.
@@ -115,7 +119,13 @@ export default function App() {
     if (!syncReady) return;
     const name = window.prompt('Nome do torneio (ex: Torneio de Verão 2026):');
     if (!name || !name.trim()) return;
-    const tournament: Tournament = { id: createId(), name: name.trim(), date: todayIso(), categories: [] };
+    const tournament: Tournament = {
+      id: createId(),
+      name: name.trim(),
+      date: todayIso(),
+      categories: [],
+      status: 'created',
+    };
     setTournaments((prev) => [...prev, tournament]);
     setSelectedTournamentId(tournament.id);
     setSelectedCategoryId(null);
@@ -130,8 +140,23 @@ export default function App() {
     }
   }
 
+  function handleConcludeTournament(id: string) {
+    if (
+      !window.confirm(
+        'Concluir este torneio? Ele ficará travado para novas alterações (placares, sorteios, duplas, categorias e patrocinadores) até ser reaberto.',
+      )
+    )
+      return;
+    updateTournament(id, (t) => ({ ...t, status: 'completed' }));
+  }
+
+  function handleReopenTournament(id: string) {
+    if (!window.confirm('Reabrir este torneio para permitir alterações de novo?')) return;
+    updateTournament(id, (t) => ({ ...t, status: 'in_progress' }));
+  }
+
   function handleAddCategory(name: string) {
-    if (!selectedTournament) return;
+    if (!selectedTournament || isLocked) return;
     const category: Category = {
       id: createId(),
       name,
@@ -145,7 +170,7 @@ export default function App() {
   }
 
   function handleRemoveCategory(categoryId: string) {
-    if (!selectedTournament) return;
+    if (!selectedTournament || isLocked) return;
     const category = selectedTournament.categories.find((c) => c.id === categoryId);
     if (!category) return;
     const hasBracket = category.matches.length > 0;
@@ -165,7 +190,7 @@ export default function App() {
   }
 
   function handleAddTeam(name: string) {
-    if (!selectedTournament || !selectedCategory) return;
+    if (!selectedTournament || !selectedCategory || isLocked) return;
     updateCategory(selectedTournament.id, selectedCategory.id, (c) => ({
       ...c,
       teams: [...c.teams, { id: createId(), name }],
@@ -173,7 +198,7 @@ export default function App() {
   }
 
   function handleAddTeams(names: string[]) {
-    if (!selectedTournament || !selectedCategory || names.length === 0) return;
+    if (!selectedTournament || !selectedCategory || names.length === 0 || isLocked) return;
     updateCategory(selectedTournament.id, selectedCategory.id, (c) => ({
       ...c,
       teams: [...c.teams, ...names.map((name) => ({ id: createId(), name }))],
@@ -181,7 +206,7 @@ export default function App() {
   }
 
   function handleRemoveTeam(teamId: string) {
-    if (!selectedTournament || !selectedCategory) return;
+    if (!selectedTournament || !selectedCategory || isLocked) return;
     updateCategory(selectedTournament.id, selectedCategory.id, (c) => ({
       ...c,
       teams: c.teams.filter((t) => t.id !== teamId),
@@ -189,7 +214,7 @@ export default function App() {
   }
 
   async function handleAddSponsor(name: string, file: File) {
-    if (!selectedTournament) return;
+    if (!selectedTournament || isLocked) return;
     const sponsorId = createId();
     const { logoUrl, logoPath } = await uploadSponsorLogo(selectedTournament.id, sponsorId, file);
     const sponsor: Sponsor = { id: sponsorId, name, logoUrl, logoPath };
@@ -197,13 +222,13 @@ export default function App() {
   }
 
   function handleReuseSponsor(sponsor: Sponsor) {
-    if (!selectedTournament) return;
+    if (!selectedTournament || isLocked) return;
     const copy: Sponsor = { ...sponsor, id: createId() };
     updateTournament(selectedTournament.id, (t) => ({ ...t, sponsors: [...(t.sponsors ?? []), copy] }));
   }
 
   function handleRemoveSponsor(sponsor: Sponsor) {
-    if (!selectedTournament) return;
+    if (!selectedTournament || isLocked) return;
     if (!window.confirm(`Remover o patrocinador "${sponsor.name}" deste torneio?`)) return;
     // Only detaches it from this tournament — the same logo may be reused by others (see
     // reusableSponsors), so the underlying Storage file is left alone.
@@ -214,6 +239,7 @@ export default function App() {
   }
 
   function handleForgetSponsor(sponsor: Sponsor) {
+    if (isLocked) return;
     if (
       !window.confirm(
         `Esquecer "${sponsor.name}"? Ele será removido de todos os torneios em que aparece e não vai mais aparecer para reutilizar.`,
@@ -227,7 +253,7 @@ export default function App() {
   }
 
   function handleDraw() {
-    if (!selectedTournament || !selectedCategory) return;
+    if (!selectedTournament || !selectedCategory || isLocked) return;
     setDrawError(null);
     try {
       const shuffled = shuffle(selectedCategory.teams);
@@ -242,7 +268,7 @@ export default function App() {
   }
 
   function handleDrawAnimationDone() {
-    if (!selectedTournament || !selectedCategory || !pendingDraw) return;
+    if (!selectedTournament || !selectedCategory || !pendingDraw || isLocked) return;
     updateCategory(selectedTournament.id, selectedCategory.id, (c) => ({
       ...c,
       teams: pendingDraw.realTeams,
@@ -252,7 +278,7 @@ export default function App() {
   }
 
   function handleSetMatchTime(matchId: string, time: string) {
-    if (!selectedTournament || !selectedCategory) return;
+    if (!selectedTournament || !selectedCategory || isLocked) return;
     const rounded = roundToQuarterHour(time);
     updateCategory(selectedTournament.id, selectedCategory.id, (c) => ({
       ...c,
@@ -261,6 +287,7 @@ export default function App() {
   }
 
   function handleMatchClick(match: Match) {
+    if (isLocked) return;
     setModalError(null);
     if (match.status === 'ready') {
       setActiveMatch(match);
@@ -284,7 +311,7 @@ export default function App() {
   }
 
   function handleSaveResult(scoreA: number, scoreB: number) {
-    if (!selectedTournament || !selectedCategory || !activeMatch) return;
+    if (!selectedTournament || !selectedCategory || !activeMatch || isLocked) return;
     let updatedCategory: Category;
     try {
       updatedCategory = reportResult(selectedCategory, { matchId: activeMatch.id, scoreA, scoreB });
@@ -348,7 +375,12 @@ export default function App() {
                     setSelectedCategoryId(t.categories[0]?.id ?? null);
                   }}
                 >
-                  <span className="tournament-list-item-name">{t.name}</span>
+                  <span className="tournament-list-item-name">
+                    {t.name}
+                    <span className={`status-badge status-badge--${getTournamentStatus(t)}`}>
+                      {TOURNAMENT_STATUS_LABEL[getTournamentStatus(t)]}
+                    </span>
+                  </span>
                   <span className="tournament-list-item-meta">
                     {t.date} · {t.categories.length} categoria{t.categories.length === 1 ? '' : 's'}
                   </span>
@@ -382,9 +414,36 @@ export default function App() {
         </button>
         <h1>{selectedTournament.name}</h1>
         <p>{selectedTournament.date}</p>
+        <div className="tournament-status-row">
+          <span className={`status-badge status-badge--${tournamentStatus}`}>
+            {TOURNAMENT_STATUS_LABEL[tournamentStatus!]}
+          </span>
+          {isLocked ? (
+            <button
+              type="button"
+              className="btn btn--ghost btn--small"
+              onClick={() => handleReopenTournament(selectedTournament.id)}
+            >
+              Reabrir torneio
+            </button>
+          ) : (
+            <button
+              type="button"
+              className="btn btn--ghost btn--small"
+              onClick={() => handleConcludeTournament(selectedTournament.id)}
+            >
+              Concluir torneio
+            </button>
+          )}
+        </div>
       </header>
 
       {syncError && <p className="sync-banner sync-banner--error">{syncError}</p>}
+      {isLocked && (
+        <p className="lock-banner">
+          🔒 Torneio concluído — as alterações estão bloqueadas. Reabra o torneio para editar de novo.
+        </p>
+      )}
 
       <SponsorsPanel
         sponsors={selectedTournament.sponsors ?? []}
@@ -393,6 +452,7 @@ export default function App() {
         onReuse={handleReuseSponsor}
         onRemove={handleRemoveSponsor}
         onForget={handleForgetSponsor}
+        locked={isLocked}
       />
 
       <CategoryTabs
@@ -404,6 +464,7 @@ export default function App() {
         }}
         onAddCategory={handleAddCategory}
         onRemoveCategory={handleRemoveCategory}
+        locked={isLocked}
       />
 
       <main className="tournament-main">
@@ -419,6 +480,7 @@ export default function App() {
             onRemoveTeam={handleRemoveTeam}
             onDraw={handleDraw}
             drawError={drawError}
+            locked={isLocked}
           />
         )}
 
@@ -436,7 +498,11 @@ export default function App() {
                 🏖️ <strong>{selectedTournament.name}</strong> · {selectedCategory.name} · {selectedTournament.date}
               </div>
               <Podium category={selectedCategory} />
-              <BracketBoard category={selectedCategory} onMatchClick={handleMatchClick} onSetMatchTime={handleSetMatchTime} />
+              <BracketBoard
+                category={selectedCategory}
+                onMatchClick={isLocked ? undefined : handleMatchClick}
+                onSetMatchTime={isLocked ? undefined : handleSetMatchTime}
+              />
               {(selectedTournament.sponsors?.length ?? 0) > 0 && (
                 <div className="snapshot-sponsors">
                   <span className="snapshot-sponsors-label">Patrocinadores</span>

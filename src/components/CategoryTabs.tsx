@@ -6,6 +6,7 @@ interface CategoryTabsProps {
   onSelect: (categoryId: string) => void;
   onAddCategory: (name: string) => void;
   onRemoveCategory: (categoryId: string) => void;
+  locked?: boolean;
 }
 
 export function CategoryTabs({
@@ -14,6 +15,7 @@ export function CategoryTabs({
   onSelect,
   onAddCategory,
   onRemoveCategory,
+  locked = false,
 }: CategoryTabsProps) {
   return (
     <div className="category-tabs">
@@ -27,30 +29,34 @@ export function CategoryTabs({
             {c.name}
             {c.championTeamId && <span className="category-tab-trophy"> 🏆</span>}
           </button>
-          <button
-            type="button"
-            className="category-tab-remove"
-            onClick={(e) => {
-              e.stopPropagation();
-              onRemoveCategory(c.id);
-            }}
-            title={`Excluir categoria ${c.name}`}
-            aria-label={`Excluir categoria ${c.name}`}
-          >
-            ×
-          </button>
+          {!locked && (
+            <button
+              type="button"
+              className="category-tab-remove"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemoveCategory(c.id);
+              }}
+              title={`Excluir categoria ${c.name}`}
+              aria-label={`Excluir categoria ${c.name}`}
+            >
+              ×
+            </button>
+          )}
         </span>
       ))}
-      <button
-        type="button"
-        className="category-tab category-tab--add"
-        onClick={() => {
-          const name = window.prompt('Nome da nova categoria (ex: Masculino A, Feminino, Misto):');
-          if (name && name.trim()) onAddCategory(name.trim());
-        }}
-      >
-        + Categoria
-      </button>
+      {!locked && (
+        <button
+          type="button"
+          className="category-tab category-tab--add"
+          onClick={() => {
+            const name = window.prompt('Nome da nova categoria (ex: Masculino A, Feminino, Misto):');
+            if (name && name.trim()) onAddCategory(name.trim());
+          }}
+        >
+          + Categoria
+        </button>
+      )}
     </div>
   );
 }

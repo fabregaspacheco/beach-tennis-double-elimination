@@ -8,9 +8,18 @@ interface SponsorsPanelProps {
   onReuse: (sponsor: Sponsor) => void;
   onRemove: (sponsor: Sponsor) => void;
   onForget: (sponsor: Sponsor) => void;
+  locked?: boolean;
 }
 
-export function SponsorsPanel({ sponsors, reusableSponsors, onAdd, onReuse, onRemove, onForget }: SponsorsPanelProps) {
+export function SponsorsPanel({
+  sponsors,
+  reusableSponsors,
+  onAdd,
+  onReuse,
+  onRemove,
+  onForget,
+  locked = false,
+}: SponsorsPanelProps) {
   // Collapsed by default — this is set up once and doesn't need to stay big on screen every time.
   const [collapsed, setCollapsed] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
@@ -56,18 +65,20 @@ export function SponsorsPanel({ sponsors, reusableSponsors, onAdd, onReuse, onRe
 
       {!collapsed && (
         <div className="sponsors-panel-body">
-          <div className="sponsors-panel-body-header">
-            <button
-              type="button"
-              className="btn btn--link"
-              onClick={() => {
-                setFormOpen((v) => !v);
-                setError(null);
-              }}
-            >
-              {formOpen ? 'Cancelar' : '+ Adicionar'}
-            </button>
-          </div>
+          {!locked && (
+            <div className="sponsors-panel-body-header">
+              <button
+                type="button"
+                className="btn btn--link"
+                onClick={() => {
+                  setFormOpen((v) => !v);
+                  setError(null);
+                }}
+              >
+                {formOpen ? 'Cancelar' : '+ Adicionar'}
+              </button>
+            </div>
+          )}
 
           {sponsors.length > 0 && (
             <ul className="sponsors-list">
@@ -75,21 +86,23 @@ export function SponsorsPanel({ sponsors, reusableSponsors, onAdd, onReuse, onRe
                 <li key={s.id} className="sponsor-card">
                   <img src={s.logoUrl} alt={s.name} />
                   <span>{s.name}</span>
-                  <button
-                    type="button"
-                    className="sponsor-card-remove"
-                    onClick={() => onRemove(s)}
-                    title={`Remover ${s.name} deste torneio`}
-                  >
-                    Remover
-                  </button>
+                  {!locked && (
+                    <button
+                      type="button"
+                      className="sponsor-card-remove"
+                      onClick={() => onRemove(s)}
+                      title={`Remover ${s.name} deste torneio`}
+                    >
+                      Remover
+                    </button>
+                  )}
                 </li>
               ))}
             </ul>
           )}
           {sponsors.length === 0 && !formOpen && <p className="sponsors-empty">Nenhum patrocinador ainda.</p>}
 
-          {formOpen && (
+          {!locked && formOpen && (
             <div className="sponsor-form">
               {reusableSponsors.length > 0 && (
                 <div className="sponsor-reuse">

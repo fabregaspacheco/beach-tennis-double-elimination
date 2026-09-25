@@ -12,6 +12,7 @@ interface TournamentSetupProps {
   onRemoveTeam: (teamId: string) => void;
   onDraw: () => void;
   drawError: string | null;
+  locked?: boolean;
 }
 
 export function TournamentSetup({
@@ -21,6 +22,7 @@ export function TournamentSetup({
   onRemoveTeam,
   onDraw,
   drawError,
+  locked = false,
 }: TournamentSetupProps) {
   const [teamName, setTeamName] = useState('');
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -50,7 +52,9 @@ export function TournamentSetup({
     <div className="setup-panel">
       <h3>Duplas — {category.name}</h3>
 
-      {!bulkOpen && (
+      {locked && <p className="lock-banner">🔒 Torneio concluído — reabra para cadastrar duplas ou sortear a chave.</p>}
+
+      {!locked && !bulkOpen && (
         <>
           <div className="setup-add-row">
             <input
@@ -72,7 +76,7 @@ export function TournamentSetup({
         </>
       )}
 
-      {bulkOpen && (
+      {!locked && bulkOpen && (
         <div className="bulk-panel">
           <p className="bulk-hint">
             Cole a lista abaixo, uma dupla por linha. Numeração, marcadores (1., 2), -, *) e espaços extras são
@@ -122,9 +126,11 @@ export function TournamentSetup({
         {category.teams.map((t) => (
           <li key={t.id}>
             <span>{t.name}</span>
-            <button type="button" className="btn btn--ghost btn--small" onClick={() => onRemoveTeam(t.id)}>
-              Remover
-            </button>
+            {!locked && (
+              <button type="button" className="btn btn--ghost btn--small" onClick={() => onRemoveTeam(t.id)}>
+                Remover
+              </button>
+            )}
           </li>
         ))}
         {category.teams.length === 0 && <li className="team-list-empty">Nenhuma dupla cadastrada ainda.</li>}
@@ -135,7 +141,7 @@ export function TournamentSetup({
           {count} dupla{count === 1 ? '' : 's'} cadastrada{count === 1 ? '' : 's'}
           {!ready && ` — precisa de pelo menos ${MIN_TEAMS}`}
         </span>
-        <button type="button" className="btn btn--accent" disabled={!ready} onClick={onDraw}>
+        <button type="button" className="btn btn--accent" disabled={!ready || locked} onClick={onDraw}>
           Sortear chave
         </button>
       </div>
