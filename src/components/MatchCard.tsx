@@ -1,5 +1,6 @@
 import type { Category, Match } from '../types';
 import { getTeamName, isByeMatch } from '../bracket/helpers';
+import { QUARTER_HOUR_TIMES } from '../utils/time';
 
 interface MatchCardProps {
   category: Category;
@@ -19,16 +20,21 @@ export function MatchCard({ category, match, onClick, onSetTime }: MatchCardProp
   return (
     <div className="match-slot">
       {!isBye && onSetTime && (
-        <input
-          type="time"
-          step={900}
+        <select
           className="match-time-input"
           value={match.startTime ?? ''}
           onChange={(e) => onSetTime(match.id, e.target.value)}
           onClick={(e) => e.stopPropagation()}
           aria-label="Horário da partida"
           title="Horário da partida"
-        />
+        >
+          <option value="">--:--</option>
+          {QUARTER_HOUR_TIMES.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
       )}
       <button
         type="button"
