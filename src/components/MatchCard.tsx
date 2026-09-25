@@ -20,15 +20,20 @@ function slotLabel(matchId: string, slot: 'A' | 'B', incomingRefs: Map<string, I
 
 export function MatchCard({ category, match, onClick, onSetTime, incomingRefs }: MatchCardProps) {
   const isBye = isByeMatch(match);
-  const clickable = !isBye && (match.status === 'ready' || match.status === 'done') && Boolean(onClick);
+  // A lower-bracket `byeSlot` match is a guaranteed BYE the instant it's drawn — the other side
+  // never gets a real opponent — even though it only actually resolves (`isBye` becomes true)
+  // once its one live side is fed. Treat it as a BYE card from the start rather than waiting for
+  // that to happen, so the still-empty guaranteed side reads "BYE" instead of "A definir".
+  const showAsBye = isBye || Boolean(match.byeSlot);
+  const clickable = !showAsBye && (match.status === 'ready' || match.status === 'done') && Boolean(onClick);
   const nameA = match.teamAId
     ? getTeamName(category, match.teamAId)
-    : isBye
+    : isBye || match.byeSlot === 'A'
       ? 'BYE'
       : slotLabel(match.id, 'A', incomingRefs);
   const nameB = match.teamBId
     ? getTeamName(category, match.teamBId)
-    : isBye
+    : isBye || match.byeSlot === 'B'
       ? 'BYE'
       : slotLabel(match.id, 'B', incomingRefs);
   const aWon = match.status === 'done' && match.winnerId === match.teamAId;
@@ -41,7 +46,7 @@ export function MatchCard({ category, match, onClick, onSetTime, incomingRefs }:
           #{match.matchNumber}
         </span>
       )}
-      {!isBye && onSetTime && (
+      {!showAsBye && onSetTime && (
         <select
           className="match-time-input"
           value={match.startTime ?? ''}
@@ -61,7 +66,7 @@ export function MatchCard({ category, match, onClick, onSetTime, incomingRefs }:
       <button
         type="button"
         data-match-id={match.id}
-        className={`match-card match-card--${match.status}${clickable ? ' match-card--clickable' : ''}${isBye ? ' match-card--bye' : ''}`}
+        className={`match-card match-card--${match.status}${clickable ? ' match-card--clickable' : ''}${showAsBye ? ' match-card--bye' : ''}`}
         onClick={clickable ? () => onClick?.(match) : undefined}
         disabled={!clickable}
       >
