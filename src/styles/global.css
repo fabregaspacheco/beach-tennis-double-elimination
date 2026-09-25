@@ -547,6 +547,10 @@ button {
 }
 .snapshot-capture {
   background: var(--sand);
+  /* This div is captured standalone as the shared image — it can't rely on the page's own
+     padding around it (that space exists outside this element, so it never makes it into the
+     exported picture), it needs its own. */
+  padding: 24px 28px 28px;
 }
 .snapshot-header {
   font-size: 0.85rem;

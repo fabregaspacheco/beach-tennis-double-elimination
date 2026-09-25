@@ -13,14 +13,21 @@ const SNAPSHOT_BACKGROUND = '#fbf3e3';
  */
 export async function captureNodeAsPng(node: HTMLElement): Promise<string> {
   const scrollers = Array.from(node.querySelectorAll<HTMLElement>('.bracket-section'));
-  const contentWidth = Math.max(node.clientWidth, ...scrollers.map((el) => el.scrollWidth));
+
+  // `node` has its own left/right padding (so the exported image has margins even though it's
+  // captured standalone), which has to be added back on top of however wide the bracket content
+  // itself needs to be — otherwise the padding eats into the content's space and squeezes it.
+  const style = getComputedStyle(node);
+  const horizontalPadding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
+  const innerContentWidth = Math.max(node.clientWidth - horizontalPadding, ...scrollers.map((el) => el.scrollWidth));
+  const outerWidth = innerContentWidth + horizontalPadding;
 
   const originalNodeWidth = node.style.width;
   const originalScrollerWidths = scrollers.map((el) => el.style.width);
 
-  node.style.width = `${contentWidth}px`;
+  node.style.width = `${outerWidth}px`;
   scrollers.forEach((el) => {
-    el.style.width = `${contentWidth}px`;
+    el.style.width = `${innerContentWidth}px`;
   });
 
   try {
@@ -28,7 +35,7 @@ export async function captureNodeAsPng(node: HTMLElement): Promise<string> {
       backgroundColor: SNAPSHOT_BACKGROUND,
       pixelRatio: 2,
       cacheBust: true,
-      width: contentWidth,
+      width: outerWidth,
       height: node.scrollHeight,
     });
   } finally {
