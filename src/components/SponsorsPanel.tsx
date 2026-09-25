@@ -7,9 +7,10 @@ interface SponsorsPanelProps {
   onAdd: (name: string, file: File) => Promise<void>;
   onReuse: (sponsor: Sponsor) => void;
   onRemove: (sponsor: Sponsor) => void;
+  onForget: (sponsor: Sponsor) => void;
 }
 
-export function SponsorsPanel({ sponsors, reusableSponsors, onAdd, onReuse, onRemove }: SponsorsPanelProps) {
+export function SponsorsPanel({ sponsors, reusableSponsors, onAdd, onReuse, onRemove, onForget }: SponsorsPanelProps) {
   const [formOpen, setFormOpen] = useState(false);
   const [name, setName] = useState('');
   const [file, setFile] = useState<File | null>(null);
@@ -55,16 +56,16 @@ export function SponsorsPanel({ sponsors, reusableSponsors, onAdd, onReuse, onRe
         <ul className="sponsors-list">
           {sponsors.map((s) => (
             <li key={s.id} className="sponsor-card">
+              <img src={s.logoUrl} alt={s.name} />
+              <span>{s.name}</span>
               <button
                 type="button"
                 className="sponsor-card-remove"
                 onClick={() => onRemove(s)}
-                aria-label={`Remover ${s.name}`}
+                title={`Remover ${s.name} deste torneio`}
               >
-                ×
+                Remover
               </button>
-              <img src={s.logoUrl} alt={s.name} />
-              <span>{s.name}</span>
             </li>
           ))}
         </ul>
@@ -78,16 +79,21 @@ export function SponsorsPanel({ sponsors, reusableSponsors, onAdd, onReuse, onRe
               <span className="sponsor-reuse-label">Reutilizar patrocinador já cadastrado</span>
               <div className="sponsor-reuse-list">
                 {reusableSponsors.map((s) => (
-                  <button
-                    key={s.logoPath}
-                    type="button"
-                    className="sponsor-reuse-item"
-                    onClick={() => onReuse(s)}
-                    title={`Adicionar ${s.name}`}
-                  >
-                    <img src={s.logoUrl} alt={s.name} />
-                    <span>{s.name}</span>
-                  </button>
+                  <div key={s.logoPath} className="sponsor-reuse-item">
+                    <button type="button" className="sponsor-reuse-pick" onClick={() => onReuse(s)} title={`Adicionar ${s.name}`}>
+                      <img src={s.logoUrl} alt={s.name} />
+                      <span>{s.name}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="sponsor-reuse-forget"
+                      onClick={() => onForget(s)}
+                      title={`Esquecer ${s.name} (remove de todos os torneios)`}
+                      aria-label={`Esquecer ${s.name}`}
+                    >
+                      ×
+                    </button>
+                  </div>
                 ))}
               </div>
               <span className="sponsor-reuse-divider">ou envie um novo logo</span>

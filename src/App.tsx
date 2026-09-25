@@ -187,6 +187,19 @@ export default function App() {
     }));
   }
 
+  function handleForgetSponsor(sponsor: Sponsor) {
+    if (
+      !window.confirm(
+        `Esquecer "${sponsor.name}"? Ele será removido de todos os torneios em que aparece e não vai mais aparecer para reutilizar.`,
+      )
+    )
+      return;
+    const key = sponsor.name.trim().toLowerCase();
+    setTournaments((prev) =>
+      prev.map((t) => ({ ...t, sponsors: (t.sponsors ?? []).filter((s) => s.name.trim().toLowerCase() !== key) })),
+    );
+  }
+
   function handleDraw() {
     if (!selectedTournament || !selectedCategory) return;
     setDrawError(null);
@@ -336,6 +349,7 @@ export default function App() {
         onAdd={handleAddSponsor}
         onReuse={handleReuseSponsor}
         onRemove={handleRemoveSponsor}
+        onForget={handleForgetSponsor}
       />
 
       <CategoryTabs
