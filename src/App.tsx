@@ -3,6 +3,7 @@ import type { Category, Match, Sponsor, Team, Tournament } from './types';
 import { createId } from './utils/id';
 import { shuffle } from './utils/shuffle';
 import { generateDoubleElimination } from './bracket/generateBracket';
+import { buildRoundOneSlots } from './bracket/helpers';
 import { clearMatchResult, reportResult } from './bracket/reportResult';
 import { subscribeTournaments, saveTournaments } from './storage/tournamentStorage';
 import { CategoryTabs } from './components/CategoryTabs';
@@ -24,7 +25,11 @@ export default function App() {
   const [selectedTournamentId, setSelectedTournamentId] = useState<string | null>(null);
   const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null);
   const [drawError, setDrawError] = useState<string | null>(null);
-  const [pendingDraw, setPendingDraw] = useState<{ teams: Team[]; matches: Match[] } | null>(null);
+  const [pendingDraw, setPendingDraw] = useState<{
+    realTeams: Team[];
+    slots: (Team | null)[];
+    matches: Match[];
+  } | null>(null);
   const [activeMatch, setActiveMatch] = useState<Match | null>(null);
   const [modalError, setModalError] = useState<string | null>(null);
   const [syncReady, setSyncReady] = useState(false);
@@ -205,10 +210,11 @@ export default function App() {
     setDrawError(null);
     try {
       const shuffled = shuffle(selectedCategory.teams);
+      const slots = buildRoundOneSlots(shuffled);
       const matches = generateDoubleElimination(selectedCategory.id, shuffled);
       // The draw is already decided here — the animation just reveals it. Committing only
       // happens once handleDrawAnimationDone fires, so the bracket appears in sync with the reveal.
-      setPendingDraw({ teams: shuffled, matches });
+      setPendingDraw({ realTeams: shuffled, slots, matches });
     } catch (err) {
       setDrawError(err instanceof Error ? err.message : 'Não foi possível sortear a chave.');
     }
@@ -218,7 +224,7 @@ export default function App() {
     if (!selectedTournament || !selectedCategory || !pendingDraw) return;
     updateCategory(selectedTournament.id, selectedCategory.id, (c) => ({
       ...c,
-      teams: pendingDraw.teams,
+      teams: pendingDraw.realTeams,
       matches: pendingDraw.matches,
     }));
     setPendingDraw(null);
@@ -408,7 +414,7 @@ export default function App() {
         )}
       </main>
 
-      {pendingDraw && <DrawAnimation teams={pendingDraw.teams} onDone={handleDrawAnimationDone} />}
+      {pendingDraw && <DrawAnimation slots={pendingDraw.slots} onDone={handleDrawAnimationDone} />}
 
       {activeMatch && selectedCategory && (
         <ResultModal

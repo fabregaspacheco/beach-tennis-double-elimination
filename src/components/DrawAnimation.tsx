@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Team } from '../types';
 
 interface DrawAnimationProps {
-  /** Teams already in their final, shuffled draw order. */
-  teams: Team[];
+  /** Round-1 slots in pairing order (position 0&1 = match 1, etc.), already padded with `null`
+   *  for BYEs when the team count isn't a power of two. */
+  slots: (Team | null)[];
   onDone: () => void;
 }
 
@@ -13,16 +14,19 @@ const SHUFFLE_DURATION_MS = 1400;
 const SHUFFLE_TICK_MS = 90;
 const END_PAUSE_MS = 800;
 
-export function DrawAnimation({ teams, onDone }: DrawAnimationProps) {
+export function DrawAnimation({ slots, onDone }: DrawAnimationProps) {
   const [phase, setPhase] = useState<Phase>('shuffling');
   const [tick, setTick] = useState(0);
   const [revealedCount, setRevealedCount] = useState(0);
 
   const pairs = useMemo(() => {
-    const result: [Team, Team][] = [];
-    for (let i = 0; i < teams.length; i += 2) result.push([teams[i], teams[i + 1]]);
+    const result: [Team | null, Team | null][] = [];
+    for (let i = 0; i < slots.length; i += 2) result.push([slots[i], slots[i + 1]]);
     return result;
-  }, [teams]);
+  }, [slots]);
+
+  // Only real teams flicker during the shuffle — a BYE has no name to show.
+  const realTeams = useMemo(() => slots.filter((t): t is Team => t !== null), [slots]);
 
   // Roughly 2.8s of reveals total, no matter how many pairs there are.
   const revealStagger = Math.max(150, Math.min(450, Math.floor(2800 / pairs.length)));
@@ -58,7 +62,7 @@ export function DrawAnimation({ teams, onDone }: DrawAnimationProps) {
     setPhase('done');
   };
 
-  const shuffleName = teams[tick % teams.length]?.name ?? '';
+  const shuffleName = realTeams[tick % realTeams.length]?.name ?? '';
 
   return (
     <div className="modal-overlay">
@@ -89,10 +93,10 @@ export function DrawAnimation({ teams, onDone }: DrawAnimationProps) {
               {pairs.map(([a, b], i) => {
                 const revealed = i < revealedCount;
                 return (
-                  <div key={a.id} className={`draw-pair-card${revealed ? ' draw-pair-card--revealed' : ''}`}>
-                    <span className="draw-pair-slot">{revealed ? a.name : '?'}</span>
+                  <div key={i} className={`draw-pair-card${revealed ? ' draw-pair-card--revealed' : ''}`}>
+                    <span className="draw-pair-slot">{revealed ? (a ? a.name : 'BYE') : '?'}</span>
                     <span className="draw-pair-vs">x</span>
-                    <span className="draw-pair-slot">{revealed ? b.name : '?'}</span>
+                    <span className="draw-pair-slot">{revealed ? (b ? b.name : 'BYE') : '?'}</span>
                   </div>
                 );
               })}

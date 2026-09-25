@@ -1,5 +1,5 @@
 import type { Category, Match } from '../types';
-import { getTeamName } from '../bracket/helpers';
+import { getTeamName, isByeMatch } from '../bracket/helpers';
 
 interface MatchCardProps {
   category: Category;
@@ -8,16 +8,17 @@ interface MatchCardProps {
 }
 
 export function MatchCard({ category, match, onClick }: MatchCardProps) {
-  const clickable = (match.status === 'ready' || match.status === 'done') && Boolean(onClick);
-  const nameA = getTeamName(category, match.teamAId);
-  const nameB = getTeamName(category, match.teamBId);
+  const isBye = isByeMatch(match);
+  const clickable = !isBye && (match.status === 'ready' || match.status === 'done') && Boolean(onClick);
+  const nameA = match.teamAId ? getTeamName(category, match.teamAId) : isBye ? 'BYE' : 'A definir';
+  const nameB = match.teamBId ? getTeamName(category, match.teamBId) : isBye ? 'BYE' : 'A definir';
   const aWon = match.status === 'done' && match.winnerId === match.teamAId;
   const bWon = match.status === 'done' && match.winnerId === match.teamBId;
 
   return (
     <button
       type="button"
-      className={`match-card match-card--${match.status}${clickable ? ' match-card--clickable' : ''}`}
+      className={`match-card match-card--${match.status}${clickable ? ' match-card--clickable' : ''}${isBye ? ' match-card--bye' : ''}`}
       onClick={clickable ? () => onClick?.(match) : undefined}
       disabled={!clickable}
     >

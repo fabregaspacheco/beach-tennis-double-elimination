@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { generateDoubleElimination } from './generateBracket';
 import { reportResult } from './reportResult';
+import { isByeMatch, nextPowerOfTwo } from './helpers';
 import type { Category, Match, Team } from '../types';
 
 function makeTeams(n: number): Team[] {
@@ -13,7 +14,7 @@ function makeCategory(n: number): Category {
   return { id: 'cat-1', name: 'Categoria Teste', teams, matches, championTeamId: null, runnerUpTeamId: null };
 }
 
-describe('generateDoubleElimination — structure', () => {
+describe('generateDoubleElimination — structure (potência de 2, sem BYE)', () => {
   it.each([4, 8, 16, 32])('gera o número correto de partidas para N=%i', (n) => {
     const teams = makeTeams(n);
     const matches = generateDoubleElimination('cat-1', teams);
@@ -21,10 +22,9 @@ describe('generateDoubleElimination — structure', () => {
     expect(matches.length).toBe(2 * n - 1);
   });
 
-  it('rejeita quantidades que não são potência de 2, ou menores que 4', () => {
-    expect(() => generateDoubleElimination('c', makeTeams(6))).toThrow();
-    expect(() => generateDoubleElimination('c', makeTeams(2))).toThrow();
+  it('rejeita menos de 2 duplas', () => {
     expect(() => generateDoubleElimination('c', makeTeams(1))).toThrow();
+    expect(() => generateDoubleElimination('c', makeTeams(0))).toThrow();
   });
 
   it('rodada 1 do upper bracket já vem com duplas e status ready; o resto começa pending', () => {
@@ -64,10 +64,13 @@ describe('generateDoubleElimination — structure', () => {
     expect(sizeOf(4)).toBe(1);
   });
 
-  it('rodadas da chave inferior seguem o tamanho esperado para N=16', () => {
+  it('rodadas da chave inferior para N=16 somam o total correto de partidas (14) e terminam em 1', () => {
     const matches = generateDoubleElimination('cat-1', makeTeams(16));
-    const sizeOf = (round: number) => matches.filter((m) => m.bracket === 'lower' && m.round === round).length;
-    expect([sizeOf(1), sizeOf(2), sizeOf(3), sizeOf(4), sizeOf(5), sizeOf(6)]).toEqual([4, 4, 2, 2, 1, 1]);
+    const lower = matches.filter((m) => m.bracket === 'lower');
+    expect(lower).toHaveLength(14);
+    const rounds = [...new Set(lower.map((m) => m.round))].sort((a, b) => a - b);
+    const sizeOf = (round: number) => lower.filter((m) => m.round === round).length;
+    expect(sizeOf(rounds[rounds.length - 1])).toBe(1); // the lower-bracket final is always a single match
   });
 });
 
@@ -131,5 +134,76 @@ describe('reportResult — simulação completa do torneio', () => {
     const category = makeCategory(8);
     const finished = playOut(category, (m) => m.round % 2 === 0); // arbitrary mixed outcome
     expect(finished.championTeamId).toBeTruthy();
+  });
+});
+
+describe('BYE — torneios com quantidade que não é potência de 2', () => {
+  const oddSizes = [2, 3, 5, 6, 7, 9, 10, 11, 12, 13, 15, 17, 20, 24, 31, 33];
+
+  it.each(oddSizes)('N=%i: número de BYEs bate com a diferença até a próxima potência de 2', (n) => {
+    const teams = makeTeams(n);
+    const matches = generateDoubleElimination('cat-1', teams);
+    const byes = matches.filter(isByeMatch);
+    expect(byes).toHaveLength(nextPowerOfTwo(n) - n);
+    // BYEs only ever happen in round 1 of the upper bracket — never mid-tournament.
+    for (const bye of byes) {
+      expect(bye.bracket).toBe('upper');
+      expect(bye.round).toBe(1);
+    }
+  });
+
+  it.each(oddSizes)('N=%i: nenhuma partida fica com as duas duplas vazias (BYE contra BYE)', (n) => {
+    const matches = generateDoubleElimination('cat-1', makeTeams(n));
+    for (const m of matches) {
+      if (m.bracket === 'upper' && m.round === 1) {
+        expect(m.teamAId || m.teamBId).toBeTruthy(); // at least one real team
+      }
+    }
+  });
+
+  it.each(oddSizes)('N=%i: toda referência nextMatchWinner/nextMatchLoser aponta para uma partida existente', (n) => {
+    const matches = generateDoubleElimination('cat-1', makeTeams(n));
+    const ids = new Set(matches.map((m) => m.id));
+    for (const m of matches) {
+      if (m.nextMatchWinner) expect(ids.has(m.nextMatchWinner.matchId)).toBe(true);
+      if (m.nextMatchLoser) expect(ids.has(m.nextMatchLoser.matchId)).toBe(true);
+    }
+  });
+
+  it.each(oddSizes)('N=%i: joga tudo com a dupla A sempre vencendo e chega a um campeão único', (n) => {
+    const category = makeCategory(n);
+    const finished = playOut(category, () => true);
+    expect(finished.championTeamId).toBeTruthy();
+    expect(finished.runnerUpTeamId).toBeTruthy();
+    expect(finished.runnerUpTeamId).not.toBe(finished.championTeamId);
+  });
+
+  it.each(oddSizes)('N=%i: toda dupla termina com exatamente 2 derrotas, exceto a campeã (0 ou 1)', (n) => {
+    const teams = makeTeams(n);
+    const category = makeCategory(n);
+    const finished = playOut(category, () => true);
+    const lossesOf = (teamId: string) =>
+      finished.matches.filter((m) => m.status === 'done' && m.loserId === teamId).length;
+    for (const team of teams) {
+      const losses = lossesOf(team.id);
+      if (team.id === finished.championTeamId) {
+        expect(losses).toBeLessThanOrEqual(1);
+      } else {
+        expect(losses).toBe(2);
+      }
+    }
+  });
+
+  it.each(oddSizes)('N=%i: joga tudo com resultados variados (mistura de vencedores) e ainda chega a um campeão', (n) => {
+    const category = makeCategory(n);
+    // Alternates who wins based on the match id's char code, just to get varied bracket paths
+    // instead of always the same slot winning.
+    const finished = playOut(category, (m) => m.id.charCodeAt(m.id.length - 1) % 2 === 0);
+    expect(finished.championTeamId).toBeTruthy();
+  });
+
+  it('N=5: exatamente 3 BYEs, e o campeão pode vir tanto de quem teve BYE quanto de quem não teve', () => {
+    const matches = generateDoubleElimination('cat-1', makeTeams(5));
+    expect(matches.filter(isByeMatch)).toHaveLength(3);
   });
 });

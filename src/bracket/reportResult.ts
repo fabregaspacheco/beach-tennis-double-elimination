@@ -1,4 +1,5 @@
 import type { Category, Match, MatchSlotRef } from '../types';
+import { placeTeam } from './helpers';
 
 export interface ReportResultInput {
   matchId: string;
@@ -10,17 +11,6 @@ function cloneMatches(category: Category): { matches: Match[]; byId: Map<string,
   const matches = category.matches.map((m) => ({ ...m }));
   const byId = new Map(matches.map((m) => [m.id, m]));
   return { matches, byId };
-}
-
-function placeTeam(byId: Map<string, Match>, ref: MatchSlotRef | undefined, teamId: string) {
-  if (!ref) return;
-  const target = byId.get(ref.matchId);
-  if (!target) return;
-  if (ref.slot === 'A') target.teamAId = teamId;
-  else target.teamBId = teamId;
-  if (target.teamAId && target.teamBId && target.status === 'pending') {
-    target.status = 'ready';
-  }
 }
 
 /** Records the score of a `ready` match and propagates the winner/loser to the next matches. */

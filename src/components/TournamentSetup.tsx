@@ -1,7 +1,9 @@
 import { useMemo, useState } from 'react';
 import type { Category } from '../types';
-import { isPowerOfTwo } from '../bracket/helpers';
+import { nextPowerOfTwo } from '../bracket/helpers';
 import { parseBulkTeamNames } from '../utils/parseBulkTeamNames';
+
+const MIN_TEAMS = 2;
 
 interface TournamentSetupProps {
   category: Category;
@@ -25,7 +27,8 @@ export function TournamentSetup({
   const [bulkText, setBulkText] = useState('');
 
   const count = category.teams.length;
-  const ready = isPowerOfTwo(count);
+  const ready = count >= MIN_TEAMS;
+  const byes = ready ? nextPowerOfTwo(count) - count : 0;
 
   const bulkNames = useMemo(() => parseBulkTeamNames(bulkText), [bulkText]);
 
@@ -130,12 +133,17 @@ export function TournamentSetup({
       <div className="setup-footer">
         <span className={`team-count${ready ? ' team-count--ok' : ''}`}>
           {count} dupla{count === 1 ? '' : 's'} cadastrada{count === 1 ? '' : 's'}
-          {!ready && count > 0 && ' — precisa ser potência de 2 (4, 8, 16, 32...)'}
+          {!ready && ` — precisa de pelo menos ${MIN_TEAMS}`}
         </span>
         <button type="button" className="btn btn--accent" disabled={!ready} onClick={onDraw}>
           Sortear chave
         </button>
       </div>
+      {ready && byes > 0 && (
+        <p className="bye-hint">
+          {`${count} não é potência de 2 — ${byes} ${byes === 1 ? 'dupla vai' : 'duplas vão'} receber BYE (${byes === 1 ? 'avança' : 'avançam'} direto pra Rodada 2 da chave superior), sorteada${byes === 1 ? '' : 's'} aleatoriamente.`}
+        </p>
+      )}
       {drawError && <p className="modal-error">{drawError}</p>}
     </div>
   );

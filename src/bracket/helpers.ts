@@ -1,7 +1,62 @@
-import type { Category, Match } from '../types';
+import type { Category, Match, MatchSlotRef, Team } from '../types';
 
 export function isPowerOfTwo(n: number): boolean {
   return n >= 4 && (n & (n - 1)) === 0;
+}
+
+/** Smallest power of two that is >= n (the bracket size once BYEs pad it out). */
+export function nextPowerOfTwo(n: number): number {
+  let p = 1;
+  while (p < n) p *= 2;
+  return p;
+}
+
+/**
+ * Standard tournament bracket seeding order: for a bracket of `size` (a power of two), returns
+ * the seed number that belongs at each position, arranged so that consecutive pairs of positions
+ * are round-1 opponents. E.g. seedOrder(8) = [1,8,4,5,2,7,3,6] — seed 1 plays seed 8, seed 4
+ * plays seed 5, etc. This is the same seeding used by real bracket software specifically because
+ * it spreads BYEs (given to the lowest seed numbers that don't have a real team) so that no two
+ * BYEs ever land in the same round-1 match, as long as there are fewer BYEs than half the bracket
+ * — which is always true here.
+ */
+export function computeSeedOrder(size: number): number[] {
+  let order = [1];
+  while (order.length < size) {
+    const k = order.length;
+    const next: number[] = [];
+    for (const s of order) next.push(s, 2 * k + 1 - s);
+    order = next;
+  }
+  return order;
+}
+
+/**
+ * Arranges `teams` (already in draw order) into round-1 slots, padded with `null` (BYE) up to
+ * the next power of two, using the standard seeding order above. The result is already in
+ * pairing order: positions 0&1 are round-1 match 1's opponents, 2&3 are match 2's, and so on.
+ */
+export function buildRoundOneSlots(teams: Team[]): (Team | null)[] {
+  const N = teams.length;
+  const size = nextPowerOfTwo(N);
+  return computeSeedOrder(size).map((seed) => (seed <= N ? teams[seed - 1] : null));
+}
+
+/** Writes `teamId` into the slot `ref` points to, marking that match `ready` once both fill in. */
+export function placeTeam(byId: Map<string, Match>, ref: MatchSlotRef | undefined, teamId: string) {
+  if (!ref) return;
+  const target = byId.get(ref.matchId);
+  if (!target) return;
+  if (ref.slot === 'A') target.teamAId = teamId;
+  else target.teamBId = teamId;
+  if (target.teamAId && target.teamBId && target.status === 'pending') {
+    target.status = 'ready';
+  }
+}
+
+/** A match that resolved as a BYE (one side had no opponent) rather than being actually played. */
+export function isByeMatch(match: Match): boolean {
+  return match.status === 'done' && match.loserId === null;
 }
 
 export function getTeamName(category: Category, teamId: string | null): string {
