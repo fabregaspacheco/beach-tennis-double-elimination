@@ -353,6 +353,32 @@ button {
   color: var(--ink-soft);
 }
 
+/* ---- snapshot sharing ---- */
+.share-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.share-status {
+  font-size: 0.85rem;
+  color: var(--teal-dark);
+  font-weight: 600;
+}
+.snapshot-capture {
+  background: var(--sand);
+}
+.snapshot-header {
+  font-size: 0.85rem;
+  color: var(--ink-soft);
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+.snapshot-header strong {
+  color: var(--teal-dark);
+}
+
 /* ---- bracket board ---- */
 .bracket-board {
   display: flex;

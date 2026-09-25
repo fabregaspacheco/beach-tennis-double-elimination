@@ -11,6 +11,7 @@ import { BracketBoard } from './components/BracketBoard';
 import { Podium } from './components/Podium';
 import { ResultModal } from './components/ResultModal';
 import { DrawAnimation } from './components/DrawAnimation';
+import { shareNodeAsImage } from './utils/shareSnapshot';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -26,6 +27,9 @@ export default function App() {
   const [modalError, setModalError] = useState<string | null>(null);
   const [syncReady, setSyncReady] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [isSharing, setIsSharing] = useState(false);
+  const [shareStatus, setShareStatus] = useState<string | null>(null);
+  const snapshotRef = useRef<HTMLDivElement>(null);
   // Firestore echoes our own writes back through the same listener (that's how it stays live
   // for other devices). This flag tells the save-effect below "this change just arrived FROM
   // Firestore, don't write it right back" — without it, every remote update triggers a save,
@@ -191,6 +195,33 @@ export default function App() {
     }
   }
 
+  async function handleShareSnapshot() {
+    if (!snapshotRef.current || !selectedTournament || !selectedCategory) return;
+    setIsSharing(true);
+    setShareStatus(null);
+    try {
+      const fileNameSafe = `chave-${selectedTournament.name}-${selectedCategory.name}`
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)/g, '');
+      const outcome = await shareNodeAsImage(
+        snapshotRef.current,
+        `${fileNameSafe}.png`,
+        `Chaveamento — ${selectedCategory.name}`,
+        `${selectedTournament.name} · ${selectedCategory.name}`,
+      );
+      if (outcome === 'downloaded') {
+        setShareStatus('Imagem baixada! Agora é só anexar no grupo.');
+      }
+    } catch {
+      setShareStatus('Não foi possível gerar a imagem. Tente novamente.');
+    } finally {
+      setIsSharing(false);
+    }
+  }
+
   if (!selectedTournament) {
     return (
       <div className="app-shell">
@@ -281,8 +312,20 @@ export default function App() {
 
         {selectedCategory && selectedCategory.matches.length > 0 && (
           <>
-            <Podium category={selectedCategory} />
-            <BracketBoard category={selectedCategory} onMatchClick={handleMatchClick} />
+            <div className="share-row">
+              <button type="button" className="btn btn--primary" onClick={handleShareSnapshot} disabled={isSharing}>
+                {isSharing ? 'Gerando imagem…' : '📸 Compartilhar chaveamento'}
+              </button>
+              {shareStatus && <span className="share-status">{shareStatus}</span>}
+            </div>
+
+            <div ref={snapshotRef} className="snapshot-capture">
+              <div className="snapshot-header">
+                🏖️ <strong>{selectedTournament.name}</strong> · {selectedCategory.name} · {selectedTournament.date}
+              </div>
+              <Podium category={selectedCategory} />
+              <BracketBoard category={selectedCategory} onMatchClick={handleMatchClick} />
+            </div>
           </>
         )}
       </main>
