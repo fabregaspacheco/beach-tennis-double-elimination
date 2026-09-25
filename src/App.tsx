@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import type { Category, Match, Team, Tournament } from './types';
+import type { Category, Match, Sponsor, Team, Tournament } from './types';
 import { createId } from './utils/id';
 import { shuffle } from './utils/shuffle';
 import { generateDoubleElimination } from './bracket/generateBracket';
@@ -11,7 +11,9 @@ import { BracketBoard } from './components/BracketBoard';
 import { Podium } from './components/Podium';
 import { ResultModal } from './components/ResultModal';
 import { DrawAnimation } from './components/DrawAnimation';
+import { SponsorsPanel } from './components/SponsorsPanel';
 import { shareNodeAsImage } from './utils/shareSnapshot';
+import { deleteSponsorLogo, uploadSponsorLogo } from './utils/sponsorLogo';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -139,6 +141,24 @@ export default function App() {
       ...c,
       teams: c.teams.filter((t) => t.id !== teamId),
     }));
+  }
+
+  async function handleAddSponsor(name: string, file: File) {
+    if (!selectedTournament) return;
+    const sponsorId = createId();
+    const { logoUrl, logoPath } = await uploadSponsorLogo(selectedTournament.id, sponsorId, file);
+    const sponsor: Sponsor = { id: sponsorId, name, logoUrl, logoPath };
+    updateTournament(selectedTournament.id, (t) => ({ ...t, sponsors: [...(t.sponsors ?? []), sponsor] }));
+  }
+
+  function handleRemoveSponsor(sponsor: Sponsor) {
+    if (!selectedTournament) return;
+    if (!window.confirm(`Remover o patrocinador "${sponsor.name}"?`)) return;
+    updateTournament(selectedTournament.id, (t) => ({
+      ...t,
+      sponsors: (t.sponsors ?? []).filter((s) => s.id !== sponsor.id),
+    }));
+    deleteSponsorLogo(sponsor.logoPath);
   }
 
   function handleDraw() {
@@ -284,6 +304,8 @@ export default function App() {
 
       {syncError && <p className="sync-banner sync-banner--error">{syncError}</p>}
 
+      <SponsorsPanel sponsors={selectedTournament.sponsors ?? []} onAdd={handleAddSponsor} onRemove={handleRemoveSponsor} />
+
       <CategoryTabs
         categories={selectedTournament.categories}
         activeCategoryId={selectedCategoryId}
@@ -325,6 +347,16 @@ export default function App() {
               </div>
               <Podium category={selectedCategory} />
               <BracketBoard category={selectedCategory} onMatchClick={handleMatchClick} />
+              {(selectedTournament.sponsors?.length ?? 0) > 0 && (
+                <div className="snapshot-sponsors">
+                  <span className="snapshot-sponsors-label">Patrocinadores</span>
+                  <div className="snapshot-sponsors-logos">
+                    {selectedTournament.sponsors!.map((s) => (
+                      <img key={s.id} src={s.logoUrl} alt={s.name} title={s.name} />
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </>
         )}

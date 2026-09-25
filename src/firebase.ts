@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { initializeFirestore, persistentLocalCache, persistentSingleTabManager } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
 // Firebase's web config is not a secret — it's meant to be shipped in client code. Access
 // control is enforced by Firestore security rules (see firestore.rules), not by hiding this.
@@ -20,3 +21,5 @@ export const firebaseApp = initializeApp(firebaseConfig);
 export const db = initializeFirestore(firebaseApp, {
   localCache: persistentLocalCache({ tabManager: persistentSingleTabManager({}) }),
 });
+
+export const storage = getStorage(firebaseApp);

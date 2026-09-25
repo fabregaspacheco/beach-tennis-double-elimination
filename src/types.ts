@@ -47,9 +47,19 @@ export interface Category {
   runnerUpTeamId?: string | null;
 }
 
+export interface Sponsor {
+  id: string;
+  name: string;
+  logoUrl: string;
+  /** Storage path of the uploaded file, so it can be deleted later. */
+  logoPath: string;
+}
+
 export interface Tournament {
   id: string;
   name: string;
   date: string;
   categories: Category[];
+  /** Optional: tournaments created before this feature existed won't have it. */
+  sponsors?: Sponsor[];
 }
