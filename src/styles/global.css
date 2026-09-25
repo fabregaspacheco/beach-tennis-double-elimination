@@ -12,6 +12,7 @@
   --line: #d9c9a3;
   --card-bg: #ffffff;
   --danger: #c0392b;
+  --page-gutter: 40px;
   font-family: 'Segoe UI', Roboto, system-ui, -apple-system, sans-serif;
   color-scheme: light;
 }
@@ -37,7 +38,7 @@ button {
 }
 
 .app-header {
-  padding: 20px 28px 12px;
+  padding: 20px var(--page-gutter) 12px;
   position: relative;
 }
 
@@ -56,7 +57,7 @@ button {
 .back-button {
   position: absolute;
   top: 20px;
-  right: 28px;
+  right: var(--page-gutter);
 }
 
 /* ---- buttons ---- */
@@ -118,7 +119,7 @@ button {
 
 /* ---- tournament list ---- */
 .tournament-list-page {
-  padding: 8px 28px 40px;
+  padding: 8px var(--page-gutter) 40px;
   display: flex;
   flex-direction: column;
   gap: 16px;
@@ -178,7 +179,7 @@ button {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  padding: 4px 28px 14px;
+  padding: 4px var(--page-gutter) 14px;
 }
 .category-tab {
   border: 1px solid var(--line);
@@ -202,7 +203,7 @@ button {
 
 /* ---- setup panel ---- */
 .tournament-main {
-  padding: 0 28px 60px;
+  padding: 0 var(--page-gutter) 60px;
   flex: 1;
 }
 
@@ -355,7 +356,7 @@ button {
 
 /* ---- sponsors ---- */
 .sponsors-panel {
-  margin: 0 28px 4px;
+  margin: 0 var(--page-gutter) 4px;
   padding: 16px 20px 22px;
   background: var(--card-bg);
   border: 1px solid var(--line);
