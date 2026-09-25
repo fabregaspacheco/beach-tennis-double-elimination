@@ -25,13 +25,16 @@ interface PendingSource {
  * fed into the lower bracket and, from there, reduced — via ordinary matches, one loss and
  * you're out — down to a single lower-bracket finalist who meets the upper-bracket champion in
  * the grand final. This is done with a small simulation: a `pool` of not-yet-placed lower-bracket
- * entrants (each really just a pointer to "whoever loses/wins match X", since none of these
- * results are known yet at draw time). After each upper-bracket round's real losers join the
- * pool, the pool is paired down as far as possible (one BYE if it's left with an odd one out,
- * which simply carries them forward untouched to the next round rather than creating a match for
- * them) — except after the very last upper round, when the pool is paired all the way down to a
- * single survivor. For a power-of-two team count (no BYEs), this reduces to exactly the same
- * round sizes as the classic fixed double-elimination layout.
+ * survivors (each really just a pointer to "whoever wins match X", since none of these results
+ * are known yet at draw time) and, each time a fresh batch of upper-bracket losers arrives:
+ *  - if the pool and the fresh batch are already the same size, they're merged 1:1 — a genuine
+ *    round of real matches, survivor `i` against fresh dropper `i`;
+ *  - otherwise, whichever side is bigger is reduced (paired down, halving each round) until it
+ *    matches the smaller side, *then* they're merged 1:1.
+ * Reducing a side only ever leaves an explicit BYE (see `byeSlot` on `Match`) when it truly can't
+ * pair evenly — an odd one out with nobody left to play. This is what keeps a power-of-two team
+ * count completely BYE-free in the lower bracket (there's always exactly enough real teams at
+ * every step) while still handling any other count correctly.
  */
 export function generateDoubleElimination(categoryId: string, teams: Team[]): Match[] {
   const N = teams.length;
@@ -121,17 +124,50 @@ export function generateDoubleElimination(categoryId: string, teams: Team[]): Ma
   });
 
   // ---- Lower bracket: simulate the merge of real upper-bracket losers down to one finalist ----
-  let pool: PendingSource[] = [];
   let lowerRound = 0;
 
-  /** Pairs up as much of the pool as possible into one new lower-bracket round; a leftover odd
-   *  entrant (if any) simply carries forward untouched — no team ever "loses" to nothing. */
-  function reduceLowerPool() {
+  /** Creates one new round of lower-bracket matches from a same-size batch of `a` vs `b`,
+   *  pairing entry `i` of each against the other. Returns the winners, one per match. */
+  function pairRound(a: PendingSource[], b: PendingSource[]): PendingSource[] {
     lowerRound += 1;
-    const nextPool: PendingSource[] = [];
+    const winners: PendingSource[] = [];
+    a.forEach((left, i) => {
+      const right = b[i];
+      const slot = i + 1;
+      const id = `L-R${lowerRound}-M${slot}`;
+      addMatch({
+        id,
+        categoryId,
+        bracket: 'lower',
+        round: lowerRound,
+        slot,
+        teamAId: null,
+        teamBId: null,
+        scoreA: null,
+        scoreB: null,
+        winnerId: null,
+        loserId: null,
+        status: 'pending',
+      });
+      byId.get(left.matchId)![left.field] = { matchId: id, slot: 'A' };
+      byId.get(right.matchId)![right.field] = { matchId: id, slot: 'B' };
+      winners.push({ matchId: id, field: 'nextMatchWinner' });
+    });
+    return winners;
+  }
+
+  /** One round of eliminating `current` down to `target` entries — only valid when that's
+   *  achievable in a single pass (`target` is at least half of `current.length`): pairs up just
+   *  enough into real matches, and gives everyone left over their own explicit BYE match (see
+   *  `byeSlot`) rather than silently carrying them forward, so the lower bracket's flow never has
+   *  an invisible gap. */
+  function eliminateOnePass(current: PendingSource[], target: number): PendingSource[] {
+    lowerRound += 1;
+    const matchesNeeded = current.length - target;
+    const next: PendingSource[] = [];
     let slot = 0;
-    let i = 0;
-    while (i + 1 < pool.length) {
+    let idx = 0;
+    for (; idx < matchesNeeded * 2; idx += 2) {
       slot += 1;
       const id = `L-R${lowerRound}-M${slot}`;
       addMatch({
@@ -148,16 +184,51 @@ export function generateDoubleElimination(categoryId: string, teams: Team[]): Ma
         loserId: null,
         status: 'pending',
       });
-      const a = pool[i];
-      const b = pool[i + 1];
+      const a = current[idx];
+      const b = current[idx + 1];
       byId.get(a.matchId)![a.field] = { matchId: id, slot: 'A' };
       byId.get(b.matchId)![b.field] = { matchId: id, slot: 'B' };
-      nextPool.push({ matchId: id, field: 'nextMatchWinner' });
-      i += 2;
+      next.push({ matchId: id, field: 'nextMatchWinner' });
     }
-    if (i < pool.length) nextPool.push(pool[i]);
-    pool = nextPool;
+    for (; idx < current.length; idx += 1) {
+      slot += 1;
+      const id = `L-R${lowerRound}-M${slot}`;
+      addMatch({
+        id,
+        categoryId,
+        bracket: 'lower',
+        round: lowerRound,
+        slot,
+        teamAId: null,
+        teamBId: null,
+        scoreA: null,
+        scoreB: null,
+        winnerId: null,
+        loserId: null,
+        status: 'pending',
+        byeSlot: 'B',
+      });
+      const leftover = current[idx];
+      byId.get(leftover.matchId)![leftover.field] = { matchId: id, slot: 'A' };
+      next.push({ matchId: id, field: 'nextMatchWinner' });
+    }
+    return next;
   }
+
+  /** Reduces `list` down to exactly `target` entries (target <= list.length) without ever
+   *  overshooting past it: while more than double the target remains, halves it (itself always
+   *  achievable in one pass, so no BYE is created unless there's a genuine odd one out); the
+   *  final stretch eliminates exactly enough to land precisely on target. */
+  function reduceToExactly(list: PendingSource[], target: number): PendingSource[] {
+    let current = list;
+    while (current.length > target) {
+      const step = current.length > 2 * target ? Math.ceil(current.length / 2) : target;
+      current = eliminateOnePass(current, step);
+    }
+    return current;
+  }
+
+  let pool: PendingSource[] = [];
 
   for (let r = 1; r <= n; r++) {
     const roundSize = wbSize(r);
@@ -169,16 +240,22 @@ export function generateDoubleElimination(categoryId: string, teams: Team[]): Ma
       match.nextMatchLoser = { matchId: '', slot: 'A' }; // placeholder, filled in below once known
       arrivals.push({ matchId: match.id, field: 'nextMatchLoser' });
     }
-    pool.push(...arrivals);
 
-    if (r < n) {
-      if (pool.length >= 2) reduceLowerPool();
-    } else {
-      while (pool.length > 1) reduceLowerPool();
+    if (r === 1) {
+      pool = arrivals;
+      continue;
     }
+
+    let existing = pool;
+    let fresh = arrivals;
+    if (existing.length > fresh.length) existing = reduceToExactly(existing, fresh.length);
+    else if (fresh.length > existing.length) fresh = reduceToExactly(fresh, existing.length);
+    pool = pairRound(existing, fresh);
   }
 
-  // Whatever's left (there's always exactly one) is the lower-bracket finalist.
+  // Reduce whatever's left after the last upper-bracket round's loser has joined down to the one
+  // lower-bracket finalist who'll face the upper-bracket champion in the grand final.
+  pool = reduceToExactly(pool, 1);
   const finalist = pool[0];
   byId.get(finalist.matchId)![finalist.field] = { matchId: 'GF', slot: 'B' };
 

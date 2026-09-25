@@ -64,6 +64,12 @@ describe('generateDoubleElimination — structure (potência de 2, sem BYE)', ()
     expect(sizeOf(4)).toBe(1);
   });
 
+  it.each([4, 8, 16, 32])('N=%i (potência de 2 pura): nenhuma partida da chave inferior é um BYE', (n) => {
+    const matches = generateDoubleElimination('cat-1', makeTeams(n));
+    const lowerByes = matches.filter((m) => m.bracket === 'lower' && m.byeSlot);
+    expect(lowerByes).toHaveLength(0);
+  });
+
   it('rodadas da chave inferior para N=16 somam o total correto de partidas (14) e terminam em 1', () => {
     const matches = generateDoubleElimination('cat-1', makeTeams(16));
     const lower = matches.filter((m) => m.bracket === 'lower');
@@ -160,6 +166,19 @@ describe('BYE — torneios com quantidade que não é potência de 2', () => {
       }
     }
   });
+
+  it.each(oddSizes)(
+    'N=%i: toda partida marcada como byeSlot em draw acaba resolvendo como BYE depois de jogar tudo',
+    (n) => {
+      const category = makeCategory(n);
+      const byeSlotMatchIds = category.matches.filter((m) => m.byeSlot).map((m) => m.id);
+      const finished = playOut(category, () => true);
+      for (const id of byeSlotMatchIds) {
+        const m = finished.matches.find((x) => x.id === id)!;
+        expect(isByeMatch(m)).toBe(true);
+      }
+    },
+  );
 
   it.each(oddSizes)('N=%i: toda referência nextMatchWinner/nextMatchLoser aponta para uma partida existente', (n) => {
     const matches = generateDoubleElimination('cat-1', makeTeams(n));

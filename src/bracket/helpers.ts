@@ -42,15 +42,35 @@ export function buildRoundOneSlots(teams: Team[]): (Team | null)[] {
   return computeSeedOrder(size).map((seed) => (seed <= N ? teams[seed - 1] : null));
 }
 
-/** Writes `teamId` into the slot `ref` points to, marking that match `ready` once both fill in. */
+/**
+ * Writes `teamId` into the slot `ref` points to. If that match is a normal one, it becomes
+ * `ready` once both sides are filled. If it's a guaranteed-BYE match (`byeSlot` set — the other
+ * side will never get a real opponent), it instead resolves immediately as a BYE and the cascade
+ * continues into wherever *its* winner goes next — a team can chain through several BYEs in a
+ * row before finally landing in a match it actually has to play.
+ */
 export function placeTeam(byId: Map<string, Match>, ref: MatchSlotRef | undefined, teamId: string) {
-  if (!ref) return;
-  const target = byId.get(ref.matchId);
-  if (!target) return;
-  if (ref.slot === 'A') target.teamAId = teamId;
-  else target.teamBId = teamId;
-  if (target.teamAId && target.teamBId && target.status === 'pending') {
-    target.status = 'ready';
+  let currentRef = ref;
+  let currentTeamId = teamId;
+
+  while (currentRef) {
+    const target = byId.get(currentRef.matchId);
+    if (!target) return;
+    if (currentRef.slot === 'A') target.teamAId = currentTeamId;
+    else target.teamBId = currentTeamId;
+
+    if (target.byeSlot) {
+      target.status = 'done';
+      target.winnerId = currentTeamId;
+      target.loserId = null;
+      currentRef = target.nextMatchWinner;
+      continue;
+    }
+
+    if (target.teamAId && target.teamBId && target.status === 'pending') {
+      target.status = 'ready';
+    }
+    return;
   }
 }
 
