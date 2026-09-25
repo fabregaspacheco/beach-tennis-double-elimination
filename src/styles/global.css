@@ -627,10 +627,19 @@ button {
 }
 
 .bracket-columns {
+  position: relative;
   display: flex;
   align-items: flex-start;
   gap: 36px;
   min-width: max-content;
+}
+
+.bracket-connectors {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  overflow: visible;
 }
 
 .bracket-column {

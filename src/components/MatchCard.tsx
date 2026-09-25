@@ -18,6 +18,7 @@ export function MatchCard({ category, match, onClick }: MatchCardProps) {
   return (
     <button
       type="button"
+      data-match-id={match.id}
       className={`match-card match-card--${match.status}${clickable ? ' match-card--clickable' : ''}${isBye ? ' match-card--bye' : ''}`}
       onClick={clickable ? () => onClick?.(match) : undefined}
       disabled={!clickable}

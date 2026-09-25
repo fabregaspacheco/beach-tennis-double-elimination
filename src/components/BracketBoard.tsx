@@ -1,5 +1,7 @@
+import { useRef } from 'react';
 import type { Category, Match } from '../types';
 import { MatchCard } from './MatchCard';
+import { BracketConnectors } from './BracketConnectors';
 import {
   lowerRoundLabel,
   lowerRounds,
@@ -46,11 +48,16 @@ export function BracketBoard({ category, onMatchClick }: BracketBoardProps) {
   const gfReset = category.matches.find((m) => m.id === 'GF-RESET')!;
   const showReset = gfReset.status !== 'pending' || gfReset.teamAId !== null;
 
+  const upperMatches = category.matches.filter((m) => m.bracket === 'upper');
+  const lowerMatches = category.matches.filter((m) => m.bracket === 'lower');
+  const upperColumnsRef = useRef<HTMLDivElement>(null);
+  const lowerColumnsRef = useRef<HTMLDivElement>(null);
+
   return (
     <div className="bracket-board">
       <section className="bracket-section">
         <h3 className="bracket-title bracket-title--upper">Chave Superior</h3>
-        <div className="bracket-columns">
+        <div className="bracket-columns" ref={upperColumnsRef}>
           {uRounds.map((r) => (
             <BracketColumn
               key={`u-${r}`}
@@ -61,12 +68,13 @@ export function BracketBoard({ category, onMatchClick }: BracketBoardProps) {
               onMatchClick={onMatchClick}
             />
           ))}
+          <BracketConnectors containerRef={upperColumnsRef} matches={upperMatches} />
         </div>
       </section>
 
       <section className="bracket-section">
         <h3 className="bracket-title bracket-title--lower">Chave Inferior</h3>
-        <div className="bracket-columns">
+        <div className="bracket-columns" ref={lowerColumnsRef}>
           {lRounds.map((r) => (
             <BracketColumn
               key={`l-${r}`}
@@ -77,6 +85,7 @@ export function BracketBoard({ category, onMatchClick }: BracketBoardProps) {
               onMatchClick={onMatchClick}
             />
           ))}
+          <BracketConnectors containerRef={lowerColumnsRef} matches={lowerMatches} />
         </div>
       </section>
 
