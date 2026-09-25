@@ -13,7 +13,7 @@ import { ResultModal } from './components/ResultModal';
 import { DrawAnimation } from './components/DrawAnimation';
 import { SponsorsPanel } from './components/SponsorsPanel';
 import { shareNodeAsImage } from './utils/shareSnapshot';
-import { deleteSponsorLogo, uploadSponsorLogo } from './utils/sponsorLogo';
+import { uploadSponsorLogo } from './utils/sponsorLogo';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -76,6 +76,21 @@ export default function App() {
     [selectedTournament, selectedCategoryId],
   );
 
+  // Every sponsor ever added to any tournament, one per name (most recent upload wins), minus
+  // whichever are already on the current tournament — lets an admin reuse a logo instead of
+  // uploading the same file again for every new tournament.
+  const reusableSponsors = useMemo(() => {
+    if (!selectedTournament) return [];
+    const byName = new Map<string, Sponsor>();
+    for (const t of tournaments) {
+      for (const s of t.sponsors ?? []) {
+        byName.set(s.name.trim().toLowerCase(), s);
+      }
+    }
+    const currentNames = new Set((selectedTournament.sponsors ?? []).map((s) => s.name.trim().toLowerCase()));
+    return Array.from(byName.values()).filter((s) => !currentNames.has(s.name.trim().toLowerCase()));
+  }, [tournaments, selectedTournament]);
+
   function updateTournament(tournamentId: string, updater: (t: Tournament) => Tournament) {
     setTournaments((prev) => prev.map((t) => (t.id === tournamentId ? updater(t) : t)));
   }
@@ -88,6 +103,10 @@ export default function App() {
   }
 
   function handleCreateTournament() {
+    // Guards against a real race: creating a tournament before the first Firestore snapshot
+    // arrives would be silently wiped out the moment that snapshot lands (see the save-effect's
+    // syncReady guard above) — the button is also disabled meanwhile, this is a defensive backstop.
+    if (!syncReady) return;
     const name = window.prompt('Nome do torneio (ex: Torneio de Verão 2026):');
     if (!name || !name.trim()) return;
     const tournament: Tournament = { id: createId(), name: name.trim(), date: todayIso(), categories: [] };
@@ -151,14 +170,21 @@ export default function App() {
     updateTournament(selectedTournament.id, (t) => ({ ...t, sponsors: [...(t.sponsors ?? []), sponsor] }));
   }
 
+  function handleReuseSponsor(sponsor: Sponsor) {
+    if (!selectedTournament) return;
+    const copy: Sponsor = { ...sponsor, id: createId() };
+    updateTournament(selectedTournament.id, (t) => ({ ...t, sponsors: [...(t.sponsors ?? []), copy] }));
+  }
+
   function handleRemoveSponsor(sponsor: Sponsor) {
     if (!selectedTournament) return;
-    if (!window.confirm(`Remover o patrocinador "${sponsor.name}"?`)) return;
+    if (!window.confirm(`Remover o patrocinador "${sponsor.name}" deste torneio?`)) return;
+    // Only detaches it from this tournament — the same logo may be reused by others (see
+    // reusableSponsors), so the underlying Storage file is left alone.
     updateTournament(selectedTournament.id, (t) => ({
       ...t,
       sponsors: (t.sponsors ?? []).filter((s) => s.id !== sponsor.id),
     }));
-    deleteSponsorLogo(sponsor.logoPath);
   }
 
   function handleDraw() {
@@ -252,7 +278,7 @@ export default function App() {
         {syncError && <p className="sync-banner sync-banner--error">{syncError}</p>}
         <main className="tournament-list-page">
           {!syncReady && !syncError && <p className="sync-banner">Carregando torneios…</p>}
-          <button type="button" className="btn btn--accent" onClick={handleCreateTournament}>
+          <button type="button" className="btn btn--accent" onClick={handleCreateTournament} disabled={!syncReady}>
             + Novo torneio
           </button>
           <ul className="tournament-list">
@@ -304,7 +330,13 @@ export default function App() {
 
       {syncError && <p className="sync-banner sync-banner--error">{syncError}</p>}
 
-      <SponsorsPanel sponsors={selectedTournament.sponsors ?? []} onAdd={handleAddSponsor} onRemove={handleRemoveSponsor} />
+      <SponsorsPanel
+        sponsors={selectedTournament.sponsors ?? []}
+        reusableSponsors={reusableSponsors}
+        onAdd={handleAddSponsor}
+        onReuse={handleReuseSponsor}
+        onRemove={handleRemoveSponsor}
+      />
 
       <CategoryTabs
         categories={selectedTournament.categories}

@@ -382,50 +382,114 @@ button {
 }
 .sponsors-list {
   list-style: none;
-  margin: 10px 0 0;
+  margin: 12px 0 0;
   padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+.sponsor-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  background: var(--sand);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px 10px;
+  width: 108px;
+}
+.sponsor-card img {
+  width: 76px;
+  height: 76px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: white;
+  padding: 4px;
+}
+.sponsor-card span {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--ink);
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+.sponsor-card-remove {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: white;
+  border: 1px solid var(--line);
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-size: 0.95rem;
+  line-height: 1;
+}
+.sponsor-card-remove:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+.sponsor-form {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+.sponsor-reuse {
+  margin-bottom: 14px;
+}
+.sponsor-reuse-label {
+  display: block;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--teal-dark);
+  margin-bottom: 8px;
+}
+.sponsor-reuse-list {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
-.sponsor-chip {
+.sponsor-reuse-item {
   display: flex;
   align-items: center;
   gap: 6px;
-  background: var(--sand);
+  background: var(--teal-light);
+  border: 1px solid var(--teal);
   border-radius: 999px;
-  padding: 4px 10px 4px 4px;
-  font-size: 0.82rem;
+  padding: 4px 12px 4px 4px;
+  font-size: 0.8rem;
+  color: var(--teal-dark);
+  cursor: pointer;
 }
-.sponsor-chip img {
-  width: 26px;
-  height: 26px;
+.sponsor-reuse-item:hover {
+  background: white;
+}
+.sponsor-reuse-item img {
+  width: 24px;
+  height: 24px;
   object-fit: contain;
   border-radius: 50%;
   background: white;
 }
-.sponsor-chip-remove {
-  background: none;
-  border: none;
+.sponsor-reuse-divider {
+  display: block;
+  margin-top: 10px;
+  font-size: 0.75rem;
   color: var(--ink-soft);
-  cursor: pointer;
-  font-size: 1rem;
-  line-height: 1;
-  padding: 0 2px;
+  font-style: italic;
 }
-.sponsor-chip-remove:hover {
-  color: var(--danger);
-}
-.sponsor-form {
+.sponsor-form-upload {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 8px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line);
+  margin-top: 8px;
 }
-.sponsor-form input[type='text'] {
+.sponsor-form-upload input[type='text'] {
   flex: 1;
   min-width: 160px;
   padding: 7px 10px;
@@ -433,34 +497,39 @@ button {
   border: 1px solid var(--line);
   font-size: 0.85rem;
 }
-.sponsor-form input[type='file'] {
+.sponsor-form-upload input[type='file'] {
   font-size: 0.8rem;
   max-width: 220px;
 }
 
 .snapshot-sponsors {
-  margin-top: 24px;
-  padding-top: 14px;
-  border-top: 1px solid var(--line);
+  margin-top: 28px;
+  padding-top: 18px;
+  border-top: 2px solid var(--line);
 }
 .snapshot-sponsors-label {
   display: block;
-  font-size: 0.75rem;
+  font-size: 0.85rem;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--ink-soft);
-  margin-bottom: 8px;
+  letter-spacing: 0.06em;
+  color: var(--teal-dark);
+  margin-bottom: 14px;
 }
 .snapshot-sponsors-logos {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
+  gap: 20px;
 }
 .snapshot-sponsors-logos img {
-  height: 44px;
-  max-width: 120px;
+  height: 92px;
+  max-width: 220px;
   object-fit: contain;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 12px 18px;
 }
 
 /* ---- snapshot sharing ---- */
