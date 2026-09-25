@@ -269,25 +269,32 @@ export default function App() {
     if (match.status === 'done') {
       if (!window.confirm('Desfazer o resultado desta partida?')) return;
       if (!selectedTournament || !selectedCategory) return;
+      // Computed eagerly (outside the setState updater) so a thrown error lands in this try/catch:
+      // React can invoke a functional setState updater during the render phase, well outside the
+      // call stack of this handler, where a throw would crash the whole app instead of being caught.
+      let updatedCategory: Category;
       try {
-        updateCategory(selectedTournament.id, selectedCategory.id, (c) => clearMatchResult(c, match.id));
+        updatedCategory = clearMatchResult(selectedCategory, match.id);
       } catch (err) {
         window.alert(err instanceof Error ? err.message : 'Não foi possível desfazer o resultado.');
+        return;
       }
+      updateCategory(selectedTournament.id, selectedCategory.id, () => updatedCategory);
     }
   }
 
   function handleSaveResult(scoreA: number, scoreB: number) {
     if (!selectedTournament || !selectedCategory || !activeMatch) return;
+    let updatedCategory: Category;
     try {
-      updateCategory(selectedTournament.id, selectedCategory.id, (c) =>
-        reportResult(c, { matchId: activeMatch.id, scoreA, scoreB }),
-      );
-      setActiveMatch(null);
-      setModalError(null);
+      updatedCategory = reportResult(selectedCategory, { matchId: activeMatch.id, scoreA, scoreB });
     } catch (err) {
       setModalError(err instanceof Error ? err.message : 'Não foi possível salvar o resultado.');
+      return;
     }
+    updateCategory(selectedTournament.id, selectedCategory.id, () => updatedCategory);
+    setActiveMatch(null);
+    setModalError(null);
   }
 
   async function handleShareSnapshot() {

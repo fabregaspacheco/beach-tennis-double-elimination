@@ -69,11 +69,24 @@ export function clearMatchResult(category: Category, matchId: string): Category 
   if (!match) throw new Error('Partida não encontrada.');
   if (match.status !== 'done') throw new Error('Essa partida ainda não tem resultado lançado.');
 
+  // A guaranteed-BYE match resolves itself the instant it's fed (see `placeTeam`), so it's always
+  // `done` even though nobody actually played it — it just passes its one team straight through to
+  // `nextMatchWinner`. Undoing a match that fed one has to walk through that same chain (there can
+  // be several BYEs in a row) to find the real match it ultimately reached, both to decide whether
+  // undo is even allowed and to unwind every BYE along the way.
   const assertNotDone = (ref: MatchSlotRef | undefined) => {
-    if (!ref) return;
-    const target = byId.get(ref.matchId);
-    if (target && target.status === 'done') {
-      throw new Error('Desfaça primeiro o resultado da partida seguinte que já foi jogada.');
+    let currentRef = ref;
+    while (currentRef) {
+      const target = byId.get(currentRef.matchId);
+      if (!target) return;
+      if (!target.byeSlot) {
+        if (target.status === 'done') {
+          throw new Error('Desfaça primeiro o resultado da partida seguinte que já foi jogada.');
+        }
+        return;
+      }
+      if (target.status !== 'done') return;
+      currentRef = target.nextMatchWinner;
     }
   };
 
@@ -89,12 +102,25 @@ export function clearMatchResult(category: Category, matchId: string): Category 
     assertNotDone(match.nextMatchWinner);
     assertNotDone(match.nextMatchLoser);
     const clearTeam = (ref: MatchSlotRef | undefined) => {
-      if (!ref) return;
-      const target = byId.get(ref.matchId);
-      if (!target) return;
-      if (ref.slot === 'A') target.teamAId = null;
-      else target.teamBId = null;
-      if (target.status === 'ready') target.status = 'pending';
+      let currentRef = ref;
+      while (currentRef) {
+        const target = byId.get(currentRef.matchId);
+        if (!target) return;
+        if (currentRef.slot === 'A') target.teamAId = null;
+        else target.teamBId = null;
+
+        if (target.byeSlot) {
+          const nextRef = target.nextMatchWinner;
+          target.status = 'pending';
+          target.winnerId = null;
+          target.loserId = null;
+          currentRef = nextRef;
+          continue;
+        }
+
+        if (target.status === 'ready') target.status = 'pending';
+        return;
+      }
     };
     clearTeam(match.nextMatchWinner);
     clearTeam(match.nextMatchLoser);
