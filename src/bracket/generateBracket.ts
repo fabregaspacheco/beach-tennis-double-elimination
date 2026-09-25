@@ -246,8 +246,14 @@ export function generateDoubleElimination(categoryId: string, teams: Team[]): Ma
       continue;
     }
 
+    // A round-r loser and a lower-bracket survivor who dropped from round r-1 both trace back to
+    // the very same small cluster of round-1 matches — pairing them in arrival order would very
+    // often rematch two teams that just played each other one round ago. Reversing the fresh
+    // arrivals before merging mixes the two halves of the bracket instead.
+    const mixedArrivals = [...arrivals].reverse();
+
     let existing = pool;
-    let fresh = arrivals;
+    let fresh = mixedArrivals;
     if (existing.length > fresh.length) existing = reduceToExactly(existing, fresh.length);
     else if (fresh.length > existing.length) fresh = reduceToExactly(fresh, existing.length);
     pool = pairRound(existing, fresh);

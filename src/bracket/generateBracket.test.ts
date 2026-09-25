@@ -226,3 +226,56 @@ describe('BYE — torneios com quantidade que não é potência de 2', () => {
     expect(matches.filter(isByeMatch)).toHaveLength(3);
   });
 });
+
+/** Small deterministic PRNG (mulberry32) so the "random" playouts below are reproducible. */
+function mulberry32(seed: number): () => number {
+  let state = seed;
+  return () => {
+    state |= 0;
+    state = (state + 0x6d2b79f5) | 0;
+    let t = Math.imul(state ^ (state >>> 15), 1 | state);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+describe('mistura da chave inferior — evita reencontros imediatos', () => {
+  const sizes = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 15, 16, 17, 20, 24, 32];
+
+  // Scoped to the lower bracket's very first round — exactly the reported bug (an upper-round-1
+  // loser immediately re-drawn against the very team that just beat them, because the merge
+  // paired that round's arrivals in their original order instead of mixing them). Later lower
+  // rounds can still rarely produce a coincidental rematch — sometimes provably unavoidable for
+  // a tiny bracket (e.g. N=4's lower final only ever has two possible opponents to begin with),
+  // and otherwise a much harder, unscoped "seed the whole tree to avoid every possible rematch"
+  // problem shared by most simple bracket-seeding schemes. That's not what this guards against.
+  const EARLY_ROUNDS = 1;
+
+  it.each(sizes)(
+    'N=%i: ninguém reencontra, já na 1ª rodada da chave inferior, quem acabou de jogar contra (5 sorteios aleatórios)',
+    (n) => {
+      for (let seed = 1; seed <= 5; seed++) {
+        const rand = mulberry32(seed * 1000 + n);
+        let category = makeCategory(n);
+        const playedPairs = new Set<string>();
+        let guard = 0;
+        while (!category.championTeamId) {
+          guard += 1;
+          if (guard > 1000) throw new Error('Simulação não convergiu.');
+          const ready = category.matches.find((m) => m.status === 'ready');
+          if (!ready) throw new Error('Bracket travado.');
+
+          const pairKey = [ready.teamAId, ready.teamBId].sort().join('|');
+          const isEarlyLowerRound = ready.bracket === 'lower' && ready.round <= EARLY_ROUNDS;
+          if (isEarlyLowerRound) {
+            expect(playedPairs.has(pairKey)).toBe(false);
+          }
+          playedPairs.add(pairKey);
+
+          const aWins = rand() < 0.5;
+          category = reportResult(category, { matchId: ready.id, scoreA: aWins ? 2 : 1, scoreB: aWins ? 1 : 2 });
+        }
+      }
+    },
+  );
+});
