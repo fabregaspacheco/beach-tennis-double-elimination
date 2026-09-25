@@ -732,31 +732,39 @@ button {
 }
 
 .match-slot {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  position: relative;
 }
 
 .match-slot .match-card {
-  flex: 1;
-  min-width: 0;
+  width: 100%;
 }
 
 .match-time-input {
-  flex-shrink: 0;
-  width: 72px;
-  padding: 3px 4px;
+  position: absolute;
+  top: -8px;
+  right: 10px;
+  z-index: 1;
+  width: 50px;
+  padding: 0 3px;
   border: 1px solid var(--line);
-  border-radius: 6px;
-  font-size: 0.7rem;
+  border-radius: 5px;
+  font-size: 0.62rem;
+  line-height: 1.4;
   color: var(--ink-soft);
   background: white;
   font-family: inherit;
+  opacity: 0.85;
+}
+
+.match-time-input:hover,
+.match-time-input:focus {
+  opacity: 1;
 }
 
 .match-time-input:focus {
   outline: none;
   border-color: var(--teal);
+  z-index: 2;
 }
 
 /* ---- match card ---- */
