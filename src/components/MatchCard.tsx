@@ -21,6 +21,7 @@ export function MatchCard({ category, match, onClick, onSetTime }: MatchCardProp
       {!isBye && onSetTime && (
         <input
           type="time"
+          step={900}
           className="match-time-input"
           value={match.startTime ?? ''}
           onChange={(e) => onSetTime(match.id, e.target.value)}

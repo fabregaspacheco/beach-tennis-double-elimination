@@ -15,6 +15,7 @@ import { DrawAnimation } from './components/DrawAnimation';
 import { SponsorsPanel } from './components/SponsorsPanel';
 import { shareNodeAsImage } from './utils/shareSnapshot';
 import { uploadSponsorLogo } from './utils/sponsorLogo';
+import { roundToQuarterHour } from './utils/time';
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -252,9 +253,10 @@ export default function App() {
 
   function handleSetMatchTime(matchId: string, time: string) {
     if (!selectedTournament || !selectedCategory) return;
+    const rounded = roundToQuarterHour(time);
     updateCategory(selectedTournament.id, selectedCategory.id, (c) => ({
       ...c,
-      matches: c.matches.map((m) => (m.id === matchId ? { ...m, startTime: time || null } : m)),
+      matches: c.matches.map((m) => (m.id === matchId ? { ...m, startTime: rounded || null } : m)),
     }));
   }
 
