@@ -40,6 +40,9 @@ export interface Match {
    *  The moment that one team is placed, the match auto-resolves as a BYE instead of waiting
    *  for an opponent that was never coming. */
   byeSlot?: 'A' | 'B';
+  /** Scheduled start time, "HH:MM" (24h), set manually by an admin. Optional/informational only
+   *  — doesn't affect bracket logic. */
+  startTime?: string | null;
 }
 
 export interface Category {

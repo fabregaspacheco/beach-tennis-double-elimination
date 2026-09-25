@@ -250,6 +250,14 @@ export default function App() {
     setPendingDraw(null);
   }
 
+  function handleSetMatchTime(matchId: string, time: string) {
+    if (!selectedTournament || !selectedCategory) return;
+    updateCategory(selectedTournament.id, selectedCategory.id, (c) => ({
+      ...c,
+      matches: c.matches.map((m) => (m.id === matchId ? { ...m, startTime: time || null } : m)),
+    }));
+  }
+
   function handleMatchClick(match: Match) {
     setModalError(null);
     if (match.status === 'ready') {
@@ -419,7 +427,7 @@ export default function App() {
                 🏖️ <strong>{selectedTournament.name}</strong> · {selectedCategory.name} · {selectedTournament.date}
               </div>
               <Podium category={selectedCategory} />
-              <BracketBoard category={selectedCategory} onMatchClick={handleMatchClick} />
+              <BracketBoard category={selectedCategory} onMatchClick={handleMatchClick} onSetMatchTime={handleSetMatchTime} />
               {(selectedTournament.sponsors?.length ?? 0) > 0 && (
                 <div className="snapshot-sponsors">
                   <span className="snapshot-sponsors-label">Patrocinadores</span>

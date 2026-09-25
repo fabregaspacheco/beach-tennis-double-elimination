@@ -390,16 +390,32 @@ button {
 /* ---- sponsors ---- */
 .sponsors-panel {
   margin: 0 var(--page-gutter) 4px;
-  padding: 16px 20px 22px;
   background: var(--card-bg);
   border: 1px solid var(--line);
   border-radius: 10px;
   max-width: 640px;
 }
 .sponsors-panel-header {
+  width: 100%;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 20px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  border-radius: 10px;
+}
+.sponsors-panel--collapsed .sponsors-panel-header:hover {
+  background: var(--sand);
+}
+.sponsors-panel-toggle {
+  color: var(--ink-soft);
+  font-size: 0.75rem;
+  width: 10px;
+  flex-shrink: 0;
 }
 .sponsors-panel-header h4 {
   margin: 0;
@@ -407,6 +423,33 @@ button {
   color: var(--ink-soft);
   text-transform: uppercase;
   letter-spacing: 0.03em;
+  flex-shrink: 0;
+}
+.sponsors-panel-count {
+  text-transform: none;
+  letter-spacing: normal;
+}
+.sponsors-panel-preview {
+  display: flex;
+  gap: 6px;
+  overflow: hidden;
+}
+.sponsors-panel-preview img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  border-radius: 50%;
+  background: white;
+  border: 1px solid var(--line);
+  flex-shrink: 0;
+}
+.sponsors-panel-body {
+  padding: 0 20px 22px;
+}
+.sponsors-panel-body-header {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 4px;
 }
 .sponsors-empty {
   margin: 8px 0 0;
@@ -686,6 +729,34 @@ button {
   justify-content: center;
   flex: 1;
   gap: 12px;
+}
+
+.match-slot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.match-slot .match-card {
+  flex: 1;
+  min-width: 0;
+}
+
+.match-time-input {
+  flex-shrink: 0;
+  width: 72px;
+  padding: 3px 4px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 0.7rem;
+  color: var(--ink-soft);
+  background: white;
+  font-family: inherit;
+}
+
+.match-time-input:focus {
+  outline: none;
+  border-color: var(--teal);
 }
 
 /* ---- match card ---- */

@@ -5,9 +5,10 @@ interface MatchCardProps {
   category: Category;
   match: Match;
   onClick?: (match: Match) => void;
+  onSetTime?: (matchId: string, time: string) => void;
 }
 
-export function MatchCard({ category, match, onClick }: MatchCardProps) {
+export function MatchCard({ category, match, onClick, onSetTime }: MatchCardProps) {
   const isBye = isByeMatch(match);
   const clickable = !isBye && (match.status === 'ready' || match.status === 'done') && Boolean(onClick);
   const nameA = match.teamAId ? getTeamName(category, match.teamAId) : isBye ? 'BYE' : 'A definir';
@@ -16,21 +17,34 @@ export function MatchCard({ category, match, onClick }: MatchCardProps) {
   const bWon = match.status === 'done' && match.winnerId === match.teamBId;
 
   return (
-    <button
-      type="button"
-      data-match-id={match.id}
-      className={`match-card match-card--${match.status}${clickable ? ' match-card--clickable' : ''}${isBye ? ' match-card--bye' : ''}`}
-      onClick={clickable ? () => onClick?.(match) : undefined}
-      disabled={!clickable}
-    >
-      <div className={`team-row${aWon ? ' team-row--winner' : ''}${match.teamAId ? '' : ' team-row--tbd'}`}>
-        <span className="team-name">{nameA}</span>
-        {match.scoreA !== null && <span className="score">{match.scoreA}</span>}
-      </div>
-      <div className={`team-row${bWon ? ' team-row--winner' : ''}${match.teamBId ? '' : ' team-row--tbd'}`}>
-        <span className="team-name">{nameB}</span>
-        {match.scoreB !== null && <span className="score">{match.scoreB}</span>}
-      </div>
-    </button>
+    <div className="match-slot">
+      {!isBye && onSetTime && (
+        <input
+          type="time"
+          className="match-time-input"
+          value={match.startTime ?? ''}
+          onChange={(e) => onSetTime(match.id, e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          aria-label="Horário da partida"
+          title="Horário da partida"
+        />
+      )}
+      <button
+        type="button"
+        data-match-id={match.id}
+        className={`match-card match-card--${match.status}${clickable ? ' match-card--clickable' : ''}${isBye ? ' match-card--bye' : ''}`}
+        onClick={clickable ? () => onClick?.(match) : undefined}
+        disabled={!clickable}
+      >
+        <div className={`team-row${aWon ? ' team-row--winner' : ''}${match.teamAId ? '' : ' team-row--tbd'}`}>
+          <span className="team-name">{nameA}</span>
+          {match.scoreA !== null && <span className="score">{match.scoreA}</span>}
+        </div>
+        <div className={`team-row${bWon ? ' team-row--winner' : ''}${match.teamBId ? '' : ' team-row--tbd'}`}>
+          <span className="team-name">{nameB}</span>
+          {match.scoreB !== null && <span className="score">{match.scoreB}</span>}
+        </div>
+      </button>
+    </div>
   );
 }
