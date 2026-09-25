@@ -43,6 +43,11 @@ export interface Match {
   /** Scheduled start time, "HH:MM" (24h), set manually by an admin. Optional/informational only
    *  — doesn't affect bracket logic. */
   startTime?: string | null;
+  /** Sequential display number assigned across the whole bracket at draw time (upper bracket by
+   *  round, then lower bracket by round, then the grand final and its reset) — purely cosmetic,
+   *  lets a "A definir" slot instead say "Vencedor #7" / "Perdedor #7" so a printed bracket is
+   *  self-explanatory about where each result feeds into. */
+  matchNumber?: number;
 }
 
 export interface Category {

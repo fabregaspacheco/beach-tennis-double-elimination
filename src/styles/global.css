@@ -834,6 +834,21 @@ button {
   z-index: 2;
 }
 
+.match-number-badge {
+  position: absolute;
+  top: -8px;
+  left: 10px;
+  z-index: 1;
+  padding: 1px 5px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  font-size: 0.62rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+  background: white;
+  opacity: 0.85;
+}
+
 /* ---- match card ---- */
 .match-card {
   display: flex;

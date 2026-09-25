@@ -79,6 +79,34 @@ export function isByeMatch(match: Match): boolean {
   return match.status === 'done' && match.loserId === null;
 }
 
+export interface IncomingRef {
+  matchNumber: number;
+  kind: 'vencedor' | 'perdedor';
+}
+
+/** Maps "matchId:slot" -> where that slot's team will come from (which match number, and whether
+ *  it's the winner or loser side of it), for every slot that's fed by another match's outcome.
+ *  Lets a still-empty slot read "Vencedor #7" / "Perdedor #7" instead of a bare "A definir". */
+export function buildIncomingRefMap(matches: Match[]): Map<string, IncomingRef> {
+  const map = new Map<string, IncomingRef>();
+  for (const m of matches) {
+    if (m.matchNumber == null) continue;
+    if (m.nextMatchWinner) {
+      map.set(`${m.nextMatchWinner.matchId}:${m.nextMatchWinner.slot}`, {
+        matchNumber: m.matchNumber,
+        kind: 'vencedor',
+      });
+    }
+    if (m.nextMatchLoser) {
+      map.set(`${m.nextMatchLoser.matchId}:${m.nextMatchLoser.slot}`, {
+        matchNumber: m.matchNumber,
+        kind: 'perdedor',
+      });
+    }
+  }
+  return map;
+}
+
 export function getTeamName(category: Category, teamId: string | null): string {
   if (!teamId) return 'A definir';
   return category.teams.find((t) => t.id === teamId)?.name ?? '???';

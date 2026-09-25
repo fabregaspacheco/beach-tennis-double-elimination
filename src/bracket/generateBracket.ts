@@ -282,5 +282,19 @@ export function generateDoubleElimination(categoryId: string, teams: Team[]): Ma
     placeTeam(byId, match.nextMatchWinner, winnerId);
   }
 
+  // ---- Assign display numbers, in the same order the bracket reads on screen: the whole upper
+  // bracket round by round, then the whole lower bracket round by round, then the grand final and
+  // its reset. Purely cosmetic — lets a still-empty slot say "Vencedor #7" instead of a bare
+  // "A definir" (see `buildIncomingRefMap`).
+  const bracketOrder: Record<Match['bracket'], number> = { upper: 0, lower: 1, grandFinal: 2, grandFinalReset: 3 };
+  const numbered = [...matches].sort((a, b) => {
+    if (bracketOrder[a.bracket] !== bracketOrder[b.bracket]) return bracketOrder[a.bracket] - bracketOrder[b.bracket];
+    if (a.round !== b.round) return a.round - b.round;
+    return a.slot - b.slot;
+  });
+  numbered.forEach((m, i) => {
+    m.matchNumber = i + 1;
+  });
+
   return matches;
 }

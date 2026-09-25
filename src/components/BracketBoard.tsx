@@ -1,13 +1,15 @@
-import { useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import type { Category, Match } from '../types';
 import { MatchCard } from './MatchCard';
 import { BracketConnectors } from './BracketConnectors';
 import {
+  buildIncomingRefMap,
   lowerRoundLabel,
   lowerRounds,
   matchesInRound,
   upperRoundLabel,
   upperRounds,
+  type IncomingRef,
 } from '../bracket/helpers';
 
 interface BracketBoardProps {
@@ -23,6 +25,7 @@ function BracketColumn({
   round,
   onMatchClick,
   onSetMatchTime,
+  incomingRefs,
 }: {
   category: Category;
   matches: Match[];
@@ -30,6 +33,7 @@ function BracketColumn({
   round: number;
   onMatchClick?: (match: Match) => void;
   onSetMatchTime?: (matchId: string, time: string) => void;
+  incomingRefs: Map<string, IncomingRef>;
 }) {
   const gap = 12 * 2 ** (round - 1);
   return (
@@ -37,7 +41,14 @@ function BracketColumn({
       <div className="round-label">{label}</div>
       <div className="bracket-column-matches" style={{ gap }}>
         {matches.map((m) => (
-          <MatchCard key={m.id} category={category} match={m} onClick={onMatchClick} onSetTime={onSetMatchTime} />
+          <MatchCard
+            key={m.id}
+            category={category}
+            match={m}
+            onClick={onMatchClick}
+            onSetTime={onSetMatchTime}
+            incomingRefs={incomingRefs}
+          />
         ))}
       </div>
     </div>
@@ -55,6 +66,7 @@ export function BracketBoard({ category, onMatchClick, onSetMatchTime }: Bracket
   const lowerMatches = category.matches.filter((m) => m.bracket === 'lower');
   const upperColumnsRef = useRef<HTMLDivElement>(null);
   const lowerColumnsRef = useRef<HTMLDivElement>(null);
+  const incomingRefs = useMemo(() => buildIncomingRefMap(category.matches), [category.matches]);
 
   return (
     <div className="bracket-board">
@@ -70,6 +82,7 @@ export function BracketBoard({ category, onMatchClick, onSetMatchTime }: Bracket
               round={r}
               onMatchClick={onMatchClick}
               onSetMatchTime={onSetMatchTime}
+              incomingRefs={incomingRefs}
             />
           ))}
           <BracketConnectors containerRef={upperColumnsRef} matches={upperMatches} />
@@ -88,6 +101,7 @@ export function BracketBoard({ category, onMatchClick, onSetMatchTime }: Bracket
               round={r}
               onMatchClick={onMatchClick}
               onSetMatchTime={onSetMatchTime}
+              incomingRefs={incomingRefs}
             />
           ))}
           <BracketConnectors containerRef={lowerColumnsRef} matches={lowerMatches} />
@@ -100,14 +114,26 @@ export function BracketBoard({ category, onMatchClick, onSetMatchTime }: Bracket
           <div className="bracket-column">
             <div className="round-label">Grande Final</div>
             <div className="bracket-column-matches">
-              <MatchCard category={category} match={gf} onClick={onMatchClick} onSetTime={onSetMatchTime} />
+              <MatchCard
+                category={category}
+                match={gf}
+                onClick={onMatchClick}
+                onSetTime={onSetMatchTime}
+                incomingRefs={incomingRefs}
+              />
             </div>
           </div>
           {showReset && (
             <div className="bracket-column">
               <div className="round-label">Final (Reset)</div>
               <div className="bracket-column-matches">
-                <MatchCard category={category} match={gfReset} onClick={onMatchClick} onSetTime={onSetMatchTime} />
+                <MatchCard
+                  category={category}
+                  match={gfReset}
+                  onClick={onMatchClick}
+                  onSetTime={onSetMatchTime}
+                  incomingRefs={incomingRefs}
+                />
               </div>
             </div>
           )}

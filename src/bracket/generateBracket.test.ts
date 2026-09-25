@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { generateDoubleElimination } from './generateBracket';
 import { reportResult } from './reportResult';
-import { isByeMatch, nextPowerOfTwo } from './helpers';
+import { buildIncomingRefMap, isByeMatch, nextPowerOfTwo } from './helpers';
 import type { Category, Match, Team } from '../types';
 
 function makeTeams(n: number): Team[] {
@@ -278,4 +278,77 @@ describe('mistura da chave inferior — evita reencontros imediatos', () => {
       }
     },
   );
+});
+
+describe('matchNumber — numeração sequencial exibida na chave', () => {
+  it.each([4, 5, 8, 11, 16])('cada partida recebe um número único de 1 a N para N=%i duplas', (n) => {
+    const matches = generateDoubleElimination('cat-1', makeTeams(n));
+    const numbers = matches.map((m) => m.matchNumber).sort((a, b) => a! - b!);
+    expect(numbers).toEqual(Array.from({ length: matches.length }, (_, i) => i + 1));
+  });
+
+  it('numera em ordem de leitura: toda a chave superior, depois toda a inferior, depois a grande final e o reset', () => {
+    const matches = generateDoubleElimination('cat-1', makeTeams(8));
+    const byId = new Map(matches.map((m) => [m.id, m]));
+    const maxUpper = Math.max(...matches.filter((m) => m.bracket === 'upper').map((m) => m.matchNumber!));
+    const minLower = Math.min(...matches.filter((m) => m.bracket === 'lower').map((m) => m.matchNumber!));
+    const maxLower = Math.max(...matches.filter((m) => m.bracket === 'lower').map((m) => m.matchNumber!));
+    expect(minLower).toBeGreaterThan(maxUpper);
+    expect(byId.get('GF')!.matchNumber).toBeGreaterThan(maxLower);
+    expect(byId.get('GF-RESET')!.matchNumber).toBeGreaterThan(byId.get('GF')!.matchNumber!);
+
+    // Within a bracket, round r's matches all come before round r+1's.
+    for (const bracket of ['upper', 'lower'] as const) {
+      const rounds = [...new Set(matches.filter((m) => m.bracket === bracket).map((m) => m.round))].sort(
+        (a, b) => a - b,
+      );
+      for (let i = 0; i < rounds.length - 1; i++) {
+        const maxThisRound = Math.max(
+          ...matches.filter((m) => m.bracket === bracket && m.round === rounds[i]).map((m) => m.matchNumber!),
+        );
+        const minNextRound = Math.min(
+          ...matches.filter((m) => m.bracket === bracket && m.round === rounds[i + 1]).map((m) => m.matchNumber!),
+        );
+        expect(minNextRound).toBeGreaterThan(maxThisRound);
+      }
+    }
+  });
+
+  it('buildIncomingRefMap aponta o vencedor e o perdedor de cada partida para o número correto', () => {
+    const matches = generateDoubleElimination('cat-1', makeTeams(8));
+    const byId = new Map(matches.map((m) => [m.id, m]));
+    const refs = buildIncomingRefMap(matches);
+
+    const r1m2 = byId.get('U-R1-M2')!;
+    const winnerTarget = r1m2.nextMatchWinner!;
+    const loserTarget = r1m2.nextMatchLoser!;
+
+    expect(refs.get(`${winnerTarget.matchId}:${winnerTarget.slot}`)).toEqual({
+      matchNumber: r1m2.matchNumber,
+      kind: 'vencedor',
+    });
+    expect(refs.get(`${loserTarget.matchId}:${loserTarget.slot}`)).toEqual({
+      matchNumber: r1m2.matchNumber,
+      kind: 'perdedor',
+    });
+  });
+
+  it('uma partida cujo destino é um BYE da chave inferior ainda aparece como referência de origem para quem vem depois', () => {
+    // N=11 has lower-bracket byeSlot matches (see reportResult.test.ts) — the real match that
+    // feeds one should still show up as the source in buildIncomingRefMap, using that BYE match's
+    // own number (whoever it is, once the BYE resolves, is really just passing through).
+    const matches = generateDoubleElimination('cat-1', makeTeams(11));
+    const byeMatch = matches.find((m) => m.byeSlot)!;
+    expect(byeMatch).toBeTruthy();
+    expect(byeMatch.matchNumber).toBeGreaterThan(0);
+
+    const feeder = matches.find(
+      (m) => m.nextMatchWinner?.matchId === byeMatch.id || m.nextMatchLoser?.matchId === byeMatch.id,
+    )!;
+    expect(feeder).toBeTruthy();
+
+    const refs = buildIncomingRefMap(matches);
+    const usedSlot = feeder.nextMatchWinner?.matchId === byeMatch.id ? feeder.nextMatchWinner : feeder.nextMatchLoser;
+    expect(refs.get(`${usedSlot!.matchId}:${usedSlot!.slot}`)?.matchNumber).toBe(feeder.matchNumber);
+  });
 });

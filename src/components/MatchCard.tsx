@@ -1,5 +1,5 @@
 import type { Category, Match } from '../types';
-import { getTeamName, isByeMatch } from '../bracket/helpers';
+import { getTeamName, isByeMatch, type IncomingRef } from '../bracket/helpers';
 import { QUARTER_HOUR_TIMES } from '../utils/time';
 
 interface MatchCardProps {
@@ -7,18 +7,40 @@ interface MatchCardProps {
   match: Match;
   onClick?: (match: Match) => void;
   onSetTime?: (matchId: string, time: string) => void;
+  incomingRefs: Map<string, IncomingRef>;
 }
 
-export function MatchCard({ category, match, onClick, onSetTime }: MatchCardProps) {
+/** "A definir" for a slot with no known source yet, or "Vencedor #7" / "Perdedor #7" once we know
+ *  which match (and which side of it) will land here. */
+function slotLabel(matchId: string, slot: 'A' | 'B', incomingRefs: Map<string, IncomingRef>): string {
+  const ref = incomingRefs.get(`${matchId}:${slot}`);
+  if (!ref) return 'A definir';
+  return `${ref.kind === 'vencedor' ? 'Vencedor' : 'Perdedor'} #${ref.matchNumber}`;
+}
+
+export function MatchCard({ category, match, onClick, onSetTime, incomingRefs }: MatchCardProps) {
   const isBye = isByeMatch(match);
   const clickable = !isBye && (match.status === 'ready' || match.status === 'done') && Boolean(onClick);
-  const nameA = match.teamAId ? getTeamName(category, match.teamAId) : isBye ? 'BYE' : 'A definir';
-  const nameB = match.teamBId ? getTeamName(category, match.teamBId) : isBye ? 'BYE' : 'A definir';
+  const nameA = match.teamAId
+    ? getTeamName(category, match.teamAId)
+    : isBye
+      ? 'BYE'
+      : slotLabel(match.id, 'A', incomingRefs);
+  const nameB = match.teamBId
+    ? getTeamName(category, match.teamBId)
+    : isBye
+      ? 'BYE'
+      : slotLabel(match.id, 'B', incomingRefs);
   const aWon = match.status === 'done' && match.winnerId === match.teamAId;
   const bWon = match.status === 'done' && match.winnerId === match.teamBId;
 
   return (
     <div className="match-slot">
+      {match.matchNumber != null && (
+        <span className="match-number-badge" title="Número da partida">
+          #{match.matchNumber}
+        </span>
+      )}
       {!isBye && onSetTime && (
         <select
           className="match-time-input"
