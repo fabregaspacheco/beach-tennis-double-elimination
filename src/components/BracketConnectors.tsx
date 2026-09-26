@@ -46,6 +46,10 @@ export function BracketConnectors({ containerRef, matches }: BracketConnectorsPr
       if (!containerEl) return;
       const containerRect = containerEl.getBoundingClientRect();
       const next: Connector[] = [];
+      const elbows: {
+        x1: number; y1: number; y2: number; x2: number; tipX: number; midX: number;
+        key: string; targetId: string; index: number;
+      }[] = [];
       // Every card's box, relative to the container — used to keep a connector that skips over a
       // whole column from running through a card sitting in that column.
       const cards = Array.from(containerEl.querySelectorAll<HTMLElement>('[data-match-id]')).map((el) => {
@@ -96,7 +100,12 @@ export function BracketConnectors({ containerRef, matches }: BracketConnectorsPr
         } else if (y1 === y2) {
           linePath = `M ${x1} ${y1} L ${tipX - ARROW_LENGTH} ${y2}`;
         } else {
-          linePath = `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${tipX - ARROW_LENGTH} ${y2}`;
+          // Placeholder — the vertical's x is assigned per target below, once every connector in
+          // this column gap is known, so verticals belonging to different targets never overlap.
+          linePath = '';
+          const key = `${Math.round(x1)}|${Math.round(x2)}`;
+          const item = { x1, y1, y2, x2, tipX, midX, key, targetId: target.id, index: next.length };
+          elbows.push(item);
         }
         const arrowPath = `M ${tipX} ${y2} L ${tipX - ARROW_LENGTH} ${y2 - ARROW_HALF_WIDTH} L ${tipX - ARROW_LENGTH} ${y2 + ARROW_HALF_WIDTH} Z`;
 
@@ -105,6 +114,37 @@ export function BracketConnectors({ containerRef, matches }: BracketConnectorsPr
         // side is fed) — MatchCard already shows it as a BYE card immediately for the same reason,
         // so the connector leading out of it should read as dashed from the start too.
         next.push({ linePath, arrowPath, bye: isByeMatch(m) || Boolean(m.byeSlot) });
+      }
+
+      // Assign each target's elbow its own lane within the gap: targets whose vertical spans
+      // overlap in y get different x positions, so the lines no longer run on top of each other.
+      const byGap = new Map<string, typeof elbows>();
+      for (const e of elbows) byGap.set(e.key, [...(byGap.get(e.key) ?? []), e]);
+      for (const gapItems of byGap.values()) {
+        const groups = new Map<string, { top: number; bottom: number; items: typeof elbows; lane: number }>();
+        for (const e of gapItems) {
+          const g = groups.get(e.targetId) ?? { top: Infinity, bottom: -Infinity, items: [], lane: 0 };
+          g.top = Math.min(g.top, e.y1, e.y2);
+          g.bottom = Math.max(g.bottom, e.y1, e.y2);
+          g.items.push(e);
+          groups.set(e.targetId, g);
+        }
+        const ordered = [...groups.values()].sort((a, b) => a.top - b.top);
+        const laneEnds: number[] = [];
+        for (const g of ordered) {
+          let lane = laneEnds.findIndex((end) => end < g.top - 2);
+          if (lane === -1) lane = laneEnds.length;
+          laneEnds[lane] = g.bottom;
+          g.lane = lane;
+        }
+        const laneCount = Math.max(1, laneEnds.length);
+        for (const g of ordered) {
+          for (const e of g.items) {
+            const gap = e.x2 - e.x1;
+            const x = laneCount === 1 ? e.midX : e.x1 + (gap * (g.lane + 1)) / (laneCount + 1);
+            next[e.index].linePath = `M ${e.x1} ${e.y1} L ${x} ${e.y1} L ${x} ${e.y2} L ${e.tipX - ARROW_LENGTH} ${e.y2}`;
+          }
+        }
       }
 
       setSize({ width: containerRect.width, height: containerRect.height });
