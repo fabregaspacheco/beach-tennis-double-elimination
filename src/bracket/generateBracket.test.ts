@@ -607,3 +607,28 @@ describe('sem reencontro nas primeiras rodadas da chave inferior', () => {
     },
   );
 });
+
+describe('11 duplas — a Rodada 3 da chave inferior junta os vencedores que não podem se reencontrar', () => {
+  it('a Rodada 3 é V#18 × V#19 e o vencedor do #17 segue direto para a Rodada 4', () => {
+    const matches = generateDoubleElimination('cat-1', makeTeams(11));
+    const byNum = new Map(matches.map((m) => [m.matchNumber, m]));
+    const r3 = matches.filter((m) => m.bracket === 'lower' && m.round === 3);
+    expect(r3).toHaveLength(1);
+    const feeders = matches
+      .filter((f) => f.nextMatchWinner?.matchId === r3[0].id)
+      .map((f) => f.matchNumber)
+      .sort();
+    expect(feeders).toEqual([18, 19]);
+    // The #17 winner skips round 3 and lands in a round-4 match instead.
+    const dest = matches.find((m) => m.id === byNum.get(17)!.nextMatchWinner!.matchId)!;
+    expect(dest.round).toBe(4);
+  });
+
+  it.each([8, 9, 10, 11, 12, 13, 14, 15, 16])(
+    'N=%i: as Rodadas 1 e 2 seguem sem reencontro possível depois de ajustar as reduções',
+    (n) => {
+      const early = findPossibleRematches(generateDoubleElimination('cat-1', makeTeams(n))).filter((f) => f.round <= 2);
+      expect(early).toEqual([]);
+    },
+  );
+});

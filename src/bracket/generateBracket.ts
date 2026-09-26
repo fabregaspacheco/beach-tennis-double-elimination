@@ -240,12 +240,59 @@ export function generateDoubleElimination(categoryId: string, teams: Team[]): Ma
     return best.map((j) => fresh[j]);
   }
 
+  /** Returns `list` re-ordered as [entries that play this pass, in pairs..., entries carried
+   *  forward]. With no one left over this is just `list`. Otherwise it picks who is carried so the
+   *  remaining entries, paired in order, can't repeat an earlier match — e.g. three survivors where
+   *  the first two (or first and last) could rematch: carry the one whose pairings would clash and
+   *  let the clean pair play. Ties keep today's order (the last entries are carried). */
+  function chooseWhoPlays(list: PendingSource[], matchesNeeded: number): PendingSource[] {
+    const carriedCount = list.length - matchesNeeded * 2;
+    if (carriedCount <= 0) return list;
+
+    const clash = list.map((a) => list.map((b) => couldRematch(a, b)));
+    const scoreOf = (carried: Set<number>) => {
+      const playing = list.map((_, i) => i).filter((i) => !carried.has(i));
+      let s = 0;
+      for (let k = 0; k + 1 < playing.length; k += 2) if (clash[playing[k]][playing[k + 1]]) s += 1;
+      return s;
+    };
+
+    let best = new Set<number>(list.map((_, i) => i).slice(list.length - carriedCount));
+    let bestScore = scoreOf(best);
+    let steps = 0;
+    const chosen: number[] = [];
+    const go = (from: number): void => {
+      if (bestScore === 0 || steps > ALIGN_BUDGET) return;
+      if (chosen.length === carriedCount) {
+        steps += 1;
+        const candidate = new Set(chosen);
+        const s = scoreOf(candidate);
+        if (s < bestScore) {
+          bestScore = s;
+          best = candidate;
+        }
+        return;
+      }
+      for (let i = from; i < list.length; i++) {
+        chosen.push(i);
+        go(i + 1);
+        chosen.pop();
+      }
+    };
+    go(0);
+
+    const playing = list.filter((_, i) => !best.has(i));
+    const carried = list.filter((_, i) => best.has(i));
+    return [...playing, ...carried];
+  }
+
   /** One round of eliminating `current` down to `target` entries — only valid when that's
    *  achievable in a single pass (`target` is at least half of `current.length`): pairs up just
    *  enough into real matches, and carries everyone left over forward untouched. */
-  function eliminateOnePass(current: PendingSource[], target: number): PendingSource[] {
+  function eliminateOnePass(list: PendingSource[], target: number): PendingSource[] {
     lowerRound += 1;
-    const matchesNeeded = current.length - target;
+    const matchesNeeded = list.length - target;
+    const current = chooseWhoPlays(list, matchesNeeded);
     const next: PendingSource[] = [];
     let slot = 0;
     let idx = 0;
