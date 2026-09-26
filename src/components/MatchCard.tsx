@@ -78,7 +78,7 @@ export function MatchCard({ category, match, onClick, onSetTime, incomingRefs }:
           <span className="team-name-wrap">
             <span className="team-name">{nameA}</span>
             {skippedA && (
-              <span className="skip-r1-badge" title="Caiu direto da chave superior — não jogou a Rodada 1 da chave inferior">
+              <span className="skip-r1-badge" title="Caiu direto da chave superior - Não jogou as últimas rodadas até aqui da chave inferior.">
                 direto
               </span>
             )}
@@ -89,7 +89,7 @@ export function MatchCard({ category, match, onClick, onSetTime, incomingRefs }:
           <span className="team-name-wrap">
             <span className="team-name">{nameB}</span>
             {skippedB && (
-              <span className="skip-r1-badge" title="Caiu direto da chave superior — não jogou a Rodada 1 da chave inferior">
+              <span className="skip-r1-badge" title="Caiu direto da chave superior - Não jogou as últimas rodadas até aqui da chave inferior.">
                 direto
               </span>
             )}
