@@ -504,3 +504,106 @@ describe('IncomingRef.skippedRoundOne — sinaliza quem cai direto da chave supe
     }
   });
 });
+
+/** Every pair of slots in a lower-bracket match that could hold two teams who already met in an
+ *  upper-bracket match: one may be that match's loser while the other is its winner, who lost
+ *  further down the winner path. Computed straight from the wiring, independent of the generator. */
+function findPossibleRematches(matches: Match[]) {
+  const byId = new Map(matches.map((m) => [m.id, m]));
+  const memo = new Map<string, Set<string>>();
+  const origins = (matchId: string, slot: 'A' | 'B'): Set<string> => {
+    const key = `${matchId}:${slot}`;
+    const cached = memo.get(key);
+    if (cached) return cached;
+    const out = new Set<string>();
+    for (const f of matches) {
+      if (f.nextMatchLoser?.matchId === matchId && f.nextMatchLoser.slot === slot) out.add(f.id);
+      if (f.nextMatchWinner?.matchId === matchId && f.nextMatchWinner.slot === slot && f.bracket === 'lower') {
+        for (const o of origins(f.id, 'A')) out.add(o);
+        for (const o of origins(f.id, 'B')) out.add(o);
+      }
+    }
+    memo.set(key, out);
+    return out;
+  };
+  const winnerPath = (a: string) => {
+    const path = new Set<string>();
+    let cur = byId.get(a)!.nextMatchWinner?.matchId;
+    while (cur && byId.get(cur)?.bracket === 'upper') {
+      path.add(cur);
+      cur = byId.get(cur)!.nextMatchWinner?.matchId;
+    }
+    return path;
+  };
+  const found: { matchNumber: number; round: number; upperA: number; upperB: number }[] = [];
+  for (const m of matches.filter((x) => x.bracket === 'lower')) {
+    for (const a of origins(m.id, 'A')) {
+      for (const b of origins(m.id, 'B')) {
+        if (winnerPath(a).has(b) || winnerPath(b).has(a)) {
+          found.push({
+            matchNumber: m.matchNumber!,
+            round: m.round,
+            upperA: byId.get(a)!.matchNumber!,
+            upperB: byId.get(b)!.matchNumber!,
+          });
+        }
+      }
+    }
+  }
+  return found;
+}
+
+describe('sem reencontro nas primeiras rodadas da chave inferior', () => {
+  it.each([8, 9, 10, 11, 12, 13, 14, 15, 16])(
+    'N=%i: nenhuma partida das Rodadas 1 e 2 da chave inferior pode repetir um confronto já jogado',
+    (n) => {
+      const matches = generateDoubleElimination('cat-1', makeTeams(n));
+      const early = findPossibleRematches(matches).filter((f) => f.round <= 2);
+      expect(early).toEqual([]);
+    },
+  );
+
+  it('N=15: o perdedor do #2 nunca cai na mesma partida do perdedor do #9 (que pode ser o vencedor do #2)', () => {
+    const matches = generateDoubleElimination('cat-1', makeTeams(15));
+    const byNum = new Map(matches.map((m) => [m.matchNumber, m]));
+    expect(byNum.get(2)!.nextMatchLoser!.matchId).not.toBe(byNum.get(9)!.nextMatchLoser!.matchId);
+  });
+
+  it('N=15: V(#5×#6) não enfrenta o perdedor do #11 (que pode ser o vencedor do #5 ou do #6)', () => {
+    const matches = generateDoubleElimination('cat-1', makeTeams(15));
+    const byNum = new Map(matches.map((m) => [m.matchNumber, m]));
+    const r1 = matches.find((m) => m.bracket === 'lower' && m.round === 1 && [5, 6].every((k) => {
+      const f = byNum.get(k)!;
+      return f.nextMatchLoser?.matchId === m.id;
+    }))!;
+    const winnerDest = r1.nextMatchWinner!.matchId;
+    expect(byNum.get(11)!.nextMatchLoser!.matchId).not.toBe(winnerDest);
+  });
+
+  it.each([8, 9, 10, 11, 12, 13, 14, 15, 16])(
+    'N=%i: em sorteios de resultados, ninguém repete um confronto nas Rodadas 1 e 2 da chave inferior (5 sorteios)',
+    (n) => {
+      for (let seed = 1; seed <= 5; seed++) {
+        const rand = mulberry32(seed * 7919 + n);
+        let category = makeCategory(n);
+        const played = new Set<string>();
+        let guard = 0;
+        while (!category.championTeamId) {
+          guard += 1;
+          if (guard > 1000) throw new Error('Simulação não convergiu.');
+          const ready = category.matches.find((m) => m.status === 'ready');
+          if (!ready) throw new Error('Bracket travado.');
+          const key = [ready.teamAId, ready.teamBId].sort().join('|');
+          if (ready.bracket === 'lower' && ready.round <= 2) {
+            // Only flags a repeat that the bracket *could not have avoided* structurally.
+            const possible = findPossibleRematches(category.matches).some((f) => f.matchNumber === ready.matchNumber);
+            if (!possible) expect(played.has(key)).toBe(false);
+          }
+          played.add(key);
+          const aWins = rand() < 0.5;
+          category = reportResult(category, { matchId: ready.id, scoreA: aWins ? 2 : 1, scoreB: aWins ? 1 : 2 });
+        }
+      }
+    },
+  );
+});

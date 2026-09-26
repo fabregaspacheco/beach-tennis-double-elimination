@@ -4,7 +4,15 @@ import { buildRoundOneSlots, placeTeam } from './helpers';
 interface PendingSource {
   matchId: string;
   field: 'nextMatchWinner' | 'nextMatchLoser';
+  /** Upper-bracket matches whose loser may end up being whoever fills this entry — a single match
+   *  for a fresh loser, the union of both inputs for the winner of a lower-bracket match. Used to
+   *  tell whether two entries could be teams that already played each other. */
+  origins: string[];
 }
+
+/** Upper bound on search steps when re-ordering a merge to avoid rematches, so a large bracket
+ *  can never stall the draw — past it, the best arrangement found so far is used. */
+const ALIGN_BUDGET = 20000;
 
 /**
  * Builds a full double-elimination bracket (upper bracket, lower bracket, grand final and
@@ -151,9 +159,85 @@ export function generateDoubleElimination(categoryId: string, teams: Team[]): Ma
       });
       byId.get(left.matchId)![left.field] = { matchId: id, slot: 'A' };
       byId.get(right.matchId)![right.field] = { matchId: id, slot: 'B' };
-      winners.push({ matchId: id, field: 'nextMatchWinner' });
+      winners.push({ matchId: id, field: 'nextMatchWinner', origins: [...left.origins, ...right.origins] });
     });
     return winners;
+  }
+
+  /** Upper matches downstream of `matchId` along the winner path — the matches in which the
+   *  winner of `matchId` can go on to lose. */
+  function winnerPath(matchId: string): Set<string> {
+    const path = new Set<string>();
+    let cur = byId.get(matchId)?.nextMatchWinner?.matchId;
+    while (cur && byId.get(cur)?.bracket === 'upper') {
+      path.add(cur);
+      cur = byId.get(cur)!.nextMatchWinner?.matchId;
+    }
+    return path;
+  }
+
+  /** True when the two entries could be teams that already played each other: one may be the
+   *  loser of an upper match while the other is that match's winner, who later lost downstream. */
+  function couldRematch(e: PendingSource, f: PendingSource): boolean {
+    for (const a of e.origins) {
+      const pathA = winnerPath(a);
+      for (const b of f.origins) {
+        if (pathA.has(b) || winnerPath(b).has(a)) return true;
+      }
+    }
+    return false;
+  }
+
+  /** Re-orders `fresh` (already mixed by reversal) so that pairing `existing[i]` with `fresh[i]`
+   *  never puts together two entries that could rematch. It also looks one round ahead: the
+   *  winners of neighbouring matches (0&1, 2&3, ...) are what get paired next, so a clash across
+   *  such a pair is counted too, just less heavily than a clash inside a match. Keeps as close as
+   *  possible to the given order, and settles for the fewest clashes when no clean arrangement
+   *  exists (e.g. a single survivor facing a single dropper). */
+  function alignToAvoidRematches(existing: PendingSource[], fresh: PendingSource[]): PendingSource[] {
+    const n = existing.length;
+    const all = [...existing, ...fresh];
+    const clash = all.map((a) => all.map((b) => couldRematch(a, b)));
+    const DIRECT = 1000;
+    // Clash between the two matches (i with pi) and (j with pj), i.e. any of their four entries.
+    const nextRound = (i: number, pi: number, j: number, pj: number) =>
+      clash[i][j] || clash[i][n + pj] || clash[n + pi][j] || clash[n + pi][n + pj] ? 1 : 0;
+    const scoreOf = (perm: number[]) => {
+      let s = 0;
+      for (let i = 0; i < n; i++) s += clash[i][n + perm[i]] ? DIRECT : 0;
+      for (let i = 1; i < n; i += 2) s += nextRound(i - 1, perm[i - 1], i, perm[i]);
+      return s;
+    };
+
+    let best = Array.from({ length: n }, (_, i) => i);
+    let bestScore = scoreOf(best);
+    let steps = 0;
+    const used = new Array<boolean>(n).fill(false);
+    const perm: number[] = [];
+    const go = (i: number, score: number): void => {
+      if (bestScore === 0 || steps > ALIGN_BUDGET) return;
+      if (i === n) {
+        if (score < bestScore) {
+          bestScore = score;
+          best = [...perm];
+        }
+        return;
+      }
+      for (let j = 0; j < n; j++) {
+        if (used[j]) continue;
+        let s = score + (clash[i][n + j] ? DIRECT : 0);
+        if (i % 2 === 1) s += nextRound(i - 1, perm[i - 1], i, j);
+        if (s >= bestScore) continue;
+        steps += 1;
+        used[j] = true;
+        perm.push(j);
+        go(i + 1, s);
+        perm.pop();
+        used[j] = false;
+      }
+    };
+    go(0, 0);
+    return best.map((j) => fresh[j]);
   }
 
   /** One round of eliminating `current` down to `target` entries — only valid when that's
@@ -186,7 +270,7 @@ export function generateDoubleElimination(categoryId: string, teams: Team[]): Ma
       const b = current[idx + 1];
       byId.get(a.matchId)![a.field] = { matchId: id, slot: 'A' };
       byId.get(b.matchId)![b.field] = { matchId: id, slot: 'B' };
-      next.push({ matchId: id, field: 'nextMatchWinner' });
+      next.push({ matchId: id, field: 'nextMatchWinner', origins: [...a.origins, ...b.origins] });
     }
     // Whoever's left over has no one to play this pass — they're carried straight into whatever
     // the next pass (or the merge with the other group) pairs them with, instead of getting a
@@ -250,7 +334,8 @@ export function generateDoubleElimination(categoryId: string, teams: Team[]): Ma
       if (isRoundOneBye) continue; // no real loser — nothing enters the lower bracket
       match.nextMatchLoser = { matchId: '', slot: 'A' }; // placeholder, filled in below once known
       const swappedForRoundOne = swapRoundTwoForRoundOne.get(match.id);
-      arrivals.push({ matchId: swappedForRoundOne ?? match.id, field: 'nextMatchLoser' });
+      const sourceId = swappedForRoundOne ?? match.id;
+      arrivals.push({ matchId: sourceId, field: 'nextMatchLoser', origins: [sourceId] });
     }
 
     if (r === 1) {
@@ -266,7 +351,10 @@ export function generateDoubleElimination(categoryId: string, teams: Team[]): Ma
       const withFlag = arrivals.map((entry) => {
         const sibling = swapRoundOneForRoundTwo.get(entry.matchId);
         return sibling
-          ? { source: { matchId: sibling, field: 'nextMatchLoser' as const }, protected: true }
+          ? {
+              source: { matchId: sibling, field: 'nextMatchLoser' as const, origins: [sibling] },
+              protected: true,
+            }
           : { source: entry, protected: false };
       });
       pool = [...withFlag.filter((e) => !e.protected), ...withFlag.filter((e) => e.protected)].map((e) => e.source);
@@ -276,14 +364,16 @@ export function generateDoubleElimination(categoryId: string, teams: Team[]): Ma
     // A round-r loser and a lower-bracket survivor who dropped from round r-1 both trace back to
     // the very same small cluster of round-1 matches — pairing them in arrival order would very
     // often rematch two teams that just played each other one round ago. Reversing the fresh
-    // arrivals before merging mixes the two halves of the bracket instead.
+    // arrivals before merging mixes the two halves of the bracket instead, and the alignment
+    // below then fixes whatever pairings that still left able to repeat an earlier match (the
+    // reversal alone only avoids that by luck of position).
     const mixedArrivals = [...arrivals].reverse();
 
     let existing = pool;
     let fresh = mixedArrivals;
     if (existing.length > fresh.length) existing = reduceToExactly(existing, fresh.length);
     else if (fresh.length > existing.length) fresh = reduceToExactly(fresh, existing.length);
-    pool = pairRound(existing, fresh);
+    pool = pairRound(existing, alignToAvoidRematches(existing, fresh));
   }
 
   // Reduce whatever's left after the last upper-bracket round's loser has joined down to the one
