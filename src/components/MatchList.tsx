@@ -48,12 +48,22 @@ export function MatchList({ category, onMatchClick }: MatchListProps) {
       .sort((a, b) => (a.matchNumber ?? 0) - (b.matchNumber ?? 0));
   }, [category.matches]);
 
+  const doneCount = rows.filter((m) => m.status === 'done').length;
+  const resetPending = category.matches.some((m) => m.bracket === 'grandFinalReset') && !rows.some((m) => m.bracket === 'grandFinalReset');
+
   const visible = hideDone ? rows.filter((m) => m.status !== 'done') : rows;
 
   return (
     <section className="match-list">
       <div className="match-list-head">
-        <h3>Lista de jogos</h3>
+        <div className="match-list-title">
+          <h3>Lista de jogos</h3>
+          <span className="match-list-count">
+            {rows.length} partida{rows.length === 1 ? '' : 's'} {rows.length === 1 ? 'real' : 'reais'} · {doneCount} concluída
+            {doneCount === 1 ? '' : 's'}
+            {resetPending && ' · +1 se houver reset'}
+          </span>
+        </div>
         <label className="match-list-filter">
           <input type="checkbox" checked={hideDone} onChange={(e) => setHideDone(e.target.checked)} />
           Ocultar concluídos

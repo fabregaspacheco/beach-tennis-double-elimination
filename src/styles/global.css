@@ -1243,3 +1243,15 @@ button {
   color: var(--ink-soft);
   font-style: italic;
 }
+
+.match-list-title {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+.match-list-count {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
