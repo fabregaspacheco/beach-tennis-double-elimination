@@ -1,5 +1,5 @@
 import type { Category, Match } from '../types';
-import { getTeamName, isByeMatch, type IncomingRef } from '../bracket/helpers';
+import { getTeamName, isByeMatch, slotLabel, type IncomingRef } from '../bracket/helpers';
 import { QUARTER_HOUR_TIMES } from '../utils/time';
 
 interface MatchCardProps {
@@ -8,14 +8,6 @@ interface MatchCardProps {
   onClick?: (match: Match) => void;
   onSetTime?: (matchId: string, time: string) => void;
   incomingRefs: Map<string, IncomingRef>;
-}
-
-/** "A definir" for a slot with no known source yet, or "Vencedor #7" / "Perdedor #7" once we know
- *  which match (and which side of it) will land here. */
-function slotLabel(matchId: string, slot: 'A' | 'B', incomingRefs: Map<string, IncomingRef>): string {
-  const ref = incomingRefs.get(`${matchId}:${slot}`);
-  if (!ref) return 'A definir';
-  return `${ref.kind === 'vencedor' ? 'Vencedor' : 'Perdedor'} #${ref.matchNumber}`;
 }
 
 export function MatchCard({ category, match, onClick, onSetTime, incomingRefs }: MatchCardProps) {

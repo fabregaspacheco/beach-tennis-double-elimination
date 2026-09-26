@@ -9,6 +9,7 @@ import { subscribeTournaments, saveTournaments } from './storage/tournamentStora
 import { CategoryTabs } from './components/CategoryTabs';
 import { TournamentSetup } from './components/TournamentSetup';
 import { BracketBoard } from './components/BracketBoard';
+import { MatchList } from './components/MatchList';
 import { Podium } from './components/Podium';
 import { ResultModal } from './components/ResultModal';
 import { DrawAnimation } from './components/DrawAnimation';
@@ -514,6 +515,8 @@ export default function App() {
                 </div>
               )}
             </div>
+
+            <MatchList category={selectedCategory} onMatchClick={isLocked ? undefined : handleMatchClick} />
           </>
         )}
       </main>

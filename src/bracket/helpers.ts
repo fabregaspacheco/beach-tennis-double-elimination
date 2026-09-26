@@ -162,3 +162,11 @@ export function lowerRoundLabel(round: number, totalRounds: number): string {
   if (round === totalRounds) return 'Final (Chave Inferior)';
   return `Rodada ${round} (Chave Inferior)`;
 }
+
+/** "A definir" for a slot with no known source yet, or "Vencedor #7" / "Perdedor #7" once we know
+ *  which match (and which side of it) will land here. */
+export function slotLabel(matchId: string, slot: 'A' | 'B', incomingRefs: Map<string, IncomingRef>): string {
+  const ref = incomingRefs.get(`${matchId}:${slot}`);
+  if (!ref) return 'A definir';
+  return `${ref.kind === 'vencedor' ? 'Vencedor' : 'Perdedor'} #${ref.matchNumber}`;
+}
