@@ -141,6 +141,13 @@ export default function App() {
     }
   }
 
+  function handleRenameTournament() {
+    if (!selectedTournament || isLocked) return;
+    const name = window.prompt('Novo nome do torneio:', selectedTournament.name);
+    if (!name || !name.trim() || name.trim() === selectedTournament.name) return;
+    updateTournament(selectedTournament.id, (t) => ({ ...t, name: name.trim() }));
+  }
+
   function handleConcludeTournament(id: string) {
     if (
       !window.confirm(
@@ -416,6 +423,11 @@ export default function App() {
         <h1>{selectedTournament.name}</h1>
         <p>{selectedTournament.date}</p>
         <div className="tournament-status-row">
+          {!isLocked && (
+            <button type="button" className="btn btn--ghost btn--small" onClick={handleRenameTournament}>
+              Renomear
+            </button>
+          )}
           <span className={`status-badge status-badge--${tournamentStatus}`}>
             {TOURNAMENT_STATUS_LABEL[tournamentStatus!]}
           </span>
