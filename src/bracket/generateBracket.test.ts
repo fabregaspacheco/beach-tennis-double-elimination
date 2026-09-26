@@ -352,3 +352,72 @@ describe('matchNumber — numeração sequencial exibida na chave', () => {
     expect(refs.get(`${usedSlot!.matchId}:${usedSlot!.slot}`)?.matchNumber).toBe(feeder.matchNumber);
   });
 });
+
+describe('remanejamento justo — perdedor da rodada 1 nunca fica em posição melhor que quem venceu e depois perdeu', () => {
+  // Whenever exactly one of a round-1 pair is a real match and the other a BYE, that real match's
+  // winner faces the BYE recipient in round 2 — the "sibling" match that actually tests whether
+  // the round-1 win meant anything. Its loser (win-then-loss, or the BYE recipient if they lose)
+  // must never enter the lower bracket at a shallower round than the round-1 match's own loser
+  // (loss only) — otherwise winning round 1 and then losing round 2 would leave a team worse off
+  // than simply losing round 1 outright.
+  function findSiblingPairs(matches: Match[]) {
+    const byId = new Map(matches.map((m) => [m.id, m]));
+    const upperR1 = matches.filter((m) => m.bracket === 'upper' && m.round === 1).sort((a, b) => a.slot - b.slot);
+    const pairs: { real: Match; sibling: Match }[] = [];
+    for (let i = 0; i < upperR1.length; i += 2) {
+      const a = upperR1[i];
+      const b = upperR1[i + 1];
+      const aIsBye = !a.teamAId || !a.teamBId;
+      const bIsBye = !b.teamAId || !b.teamBId;
+      if (aIsBye === bIsBye) continue; // both real or both BYE — no sibling swap for this pair
+      const real = aIsBye ? b : a;
+      const sibling = byId.get(real.nextMatchWinner!.matchId)!;
+      pairs.push({ real, sibling });
+    }
+    return pairs;
+  }
+
+  function lowerRoundOfLoser(m: Match, byId: Map<string, Match>): number {
+    const dest = byId.get(m.nextMatchLoser!.matchId)!;
+    return dest.round;
+  }
+
+  it.each([9, 10, 11])('N=%i: toda dupla-irmã da rodada 2 entra na chave inferior no mesmo estágio ou depois do que a perdedora real da rodada 1', (n) => {
+    const matches = generateDoubleElimination('cat-1', makeTeams(n));
+    const byId = new Map(matches.map((m) => [m.id, m]));
+    const pairs = findSiblingPairs(matches);
+    expect(pairs.length).toBeGreaterThan(0);
+    for (const { real, sibling } of pairs) {
+      const realLoserRound = lowerRoundOfLoser(real, byId);
+      const siblingLoserRound = lowerRoundOfLoser(sibling, byId);
+      expect(siblingLoserRound).toBeGreaterThanOrEqual(realLoserRound);
+    }
+  });
+
+  it('N=9: reproduz o exemplo documentado — #2 vai para a Rodada 1 da chave inferior, #9 pula para a Rodada 3', () => {
+    const matches = generateDoubleElimination('cat-1', makeTeams(9));
+    const byId = new Map(matches.map((m) => [m.id, m]));
+    const m2 = matches.find((m) => m.matchNumber === 2)!;
+    const m9 = matches.find((m) => m.matchNumber === 9)!;
+    expect(byId.get(m2.nextMatchLoser!.matchId)!.round).toBe(1);
+    expect(byId.get(m9.nextMatchLoser!.matchId)!.round).toBe(3);
+  });
+
+  it.each([8, 12, 13, 14, 15, 16])('N=%i: contagem e formato da chave permanecem inalterados (não afetados por essa regra)', (n) => {
+    const matches = generateDoubleElimination('cat-1', makeTeams(n));
+    const lower = matches.filter((m) => m.bracket === 'lower');
+    const lowerByes = lower.filter((m) => m.byeSlot).length;
+    // Snapshot values already verified by the existing structure tests above — this just confirms
+    // the fairness fix (scoped to N=9,10,11 only) doesn't perturb these.
+    const expected: Record<number, { total: number; lowerByes: number }> = {
+      8: { total: 15, lowerByes: 0 },
+      12: { total: 27, lowerByes: 0 },
+      13: { total: 31, lowerByes: 3 },
+      14: { total: 31, lowerByes: 2 },
+      15: { total: 31, lowerByes: 1 },
+      16: { total: 31, lowerByes: 0 },
+    };
+    expect(matches.length).toBe(expected[n].total);
+    expect(lowerByes).toBe(expected[n].lowerByes);
+  });
+});

@@ -228,6 +228,34 @@ export function generateDoubleElimination(categoryId: string, teams: Team[]): Ma
     return current;
   }
 
+  // A round-1 real match's winner has to prove it again in round 2, against whoever a round-1 BYE
+  // sent through for free. If that round-2 "mixed" match's loser turns out to be the round-1
+  // winner, they shouldn't end up worse off in the lower bracket than if they'd simply lost round
+  // 1 outright — but today they would, since round 1's real loser gets a privileged head start
+  // (skipping straight past the round-2 losers' grinder) while a round-1 winner who then loses
+  // round 2 gets thrown into that very grinder. Swapping which match's loser gets the head start —
+  // the round-2 "mixed" match instead of the round-1 real match — fixes that: whoever loses the
+  // round-2 decider can never have a worse record (1 win + 1 loss, or 0 wins + 1 loss if the BYE
+  // recipient lost) than a plain round-1 loser (always 0 wins + 1 loss), so the head start never
+  // goes to the worse record anymore. This changes nothing about total match count or bracket
+  // shape — only which match's loser occupies which slot.
+  const swapRoundOneForRoundTwo = new Map<string, string>(); // round-1 matchId -> its round-2 sibling
+  const swapRoundTwoForRoundOne = new Map<string, string>(); // round-2 matchId -> the round-1 match it trades with
+  if (n >= 2) {
+    const r1Size = wbSize(1);
+    for (let pair = 1; pair <= r1Size / 2; pair++) {
+      const mA = byId.get(upperId(1, 2 * pair - 1))!;
+      const mB = byId.get(upperId(1, 2 * pair))!;
+      const aIsBye = !mA.teamAId || !mA.teamBId;
+      const bIsBye = !mB.teamAId || !mB.teamBId;
+      if (aIsBye === bIsBye) continue; // both real (loser's already 1-1, no swap needed) or both BYE
+      const realMatch = aIsBye ? mB : mA;
+      const round2MatchId = upperId(2, pair);
+      swapRoundOneForRoundTwo.set(realMatch.id, round2MatchId);
+      swapRoundTwoForRoundOne.set(round2MatchId, realMatch.id);
+    }
+  }
+
   let pool: PendingSource[] = [];
 
   for (let r = 1; r <= n; r++) {
@@ -238,11 +266,15 @@ export function generateDoubleElimination(categoryId: string, teams: Team[]): Ma
       const isRoundOneBye = r === 1 && (!match.teamAId || !match.teamBId);
       if (isRoundOneBye) continue; // no real loser — nothing enters the lower bracket
       match.nextMatchLoser = { matchId: '', slot: 'A' }; // placeholder, filled in below once known
-      arrivals.push({ matchId: match.id, field: 'nextMatchLoser' });
+      const swappedForRoundOne = swapRoundTwoForRoundOne.get(match.id);
+      arrivals.push({ matchId: swappedForRoundOne ?? match.id, field: 'nextMatchLoser' });
     }
 
     if (r === 1) {
-      pool = arrivals;
+      pool = arrivals.map((entry) => {
+        const swapped = swapRoundOneForRoundTwo.get(entry.matchId);
+        return swapped ? { matchId: swapped, field: 'nextMatchLoser' as const } : entry;
+      });
       continue;
     }
 
