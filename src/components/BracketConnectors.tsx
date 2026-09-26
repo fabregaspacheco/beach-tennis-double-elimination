@@ -46,6 +46,17 @@ export function BracketConnectors({ containerRef, matches }: BracketConnectorsPr
       if (!containerEl) return;
       const containerRect = containerEl.getBoundingClientRect();
       const next: Connector[] = [];
+      // Every card's box, relative to the container — used to keep a connector that skips over a
+      // whole column from running through a card sitting in that column.
+      const cards = Array.from(containerEl.querySelectorAll<HTMLElement>('[data-match-id]')).map((el) => {
+        const r = el.getBoundingClientRect();
+        return {
+          left: r.left - containerRect.left,
+          right: r.right - containerRect.left,
+          top: r.top - containerRect.top,
+          bottom: r.bottom - containerRect.top,
+        };
+      });
 
       for (const m of matches) {
         if (!m.nextMatchWinner) continue;
@@ -64,10 +75,29 @@ export function BracketConnectors({ containerRef, matches }: BracketConnectorsPr
         const midX = x1 + (x2 - x1) / 2;
         const tipX = x2 - 2;
 
-        const linePath =
-          y1 === y2
-            ? `M ${x1} ${y1} L ${tipX - ARROW_LENGTH} ${y2}`
-            : `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${tipX - ARROW_LENGTH} ${y2}`;
+        // The next column to the right of the source; a target further than that means this
+        // connector skips over at least one whole column (e.g. an upper-bracket loser's winner
+        // dropping past a round).
+        const nextColumnLeft = Math.min(...cards.map((c) => c.left).filter((l) => l > x1 + 1));
+        const skipsColumn = x2 > nextColumnLeft + 1;
+        const blockedAt = (y: number) =>
+          cards.some((c) => c.left >= nextColumnLeft - 1 && c.left < x2 - 1 && y > c.top - 4 && y < c.bottom + 4);
+
+        let linePath: string;
+        if (skipsColumn && !blockedAt(y2)) {
+          // Leave the source, drop straight down in the gap next to it, then run along the target's
+          // own height — that row is empty in the skipped column, unlike the source's, which
+          // usually lines up with a card there and reads as if it fed that card instead.
+          const dropX = x1 + 4;
+          linePath = `M ${x1} ${y1} L ${dropX} ${y1} L ${dropX} ${y2} L ${tipX - ARROW_LENGTH} ${y2}`;
+        } else if (skipsColumn && !blockedAt(y1)) {
+          const dropX = x2 - 10;
+          linePath = `M ${x1} ${y1} L ${dropX} ${y1} L ${dropX} ${y2} L ${tipX - ARROW_LENGTH} ${y2}`;
+        } else if (y1 === y2) {
+          linePath = `M ${x1} ${y1} L ${tipX - ARROW_LENGTH} ${y2}`;
+        } else {
+          linePath = `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${tipX - ARROW_LENGTH} ${y2}`;
+        }
         const arrowPath = `M ${tipX} ${y2} L ${tipX - ARROW_LENGTH} ${y2 - ARROW_HALF_WIDTH} L ${tipX - ARROW_LENGTH} ${y2 + ARROW_HALF_WIDTH} Z`;
 
         // A lower-bracket `byeSlot` match is a guaranteed BYE from the moment the bracket is
