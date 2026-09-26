@@ -485,14 +485,14 @@ describe('IncomingRef.skippedRoundOne — sinaliza quem cai direto da chave supe
     }
   });
 
-  it('N=13: quem cai nas semifinais/final superior (Rodadas 4+ da inferior) NÃO recebe o selo — só a Rodada 2', () => {
+  it('N=13: quem cai nas semifinais/final superior (Rodadas 4+ da inferior) também recebe o selo', () => {
     const matches = generateDoubleElimination('cat-1', makeTeams(13));
     const refs = buildIncomingRefMap(matches);
     const byNum = new Map(matches.map((m) => [m.matchNumber, m]));
     for (const n of [13, 14, 15]) {
       const m = byNum.get(n)!;
       const ref = refs.get(`${m.nextMatchLoser!.matchId}:${m.nextMatchLoser!.slot}`)!;
-      expect(ref.skippedRoundOne).toBe(false);
+      expect(ref.skippedRoundOne).toBe(true);
     }
   });
 

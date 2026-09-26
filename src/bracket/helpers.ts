@@ -82,10 +82,9 @@ export function isByeMatch(match: Match): boolean {
 export interface IncomingRef {
   matchNumber: number;
   kind: 'vencedor' | 'perdedor';
-  /** True when this side dropped straight from the upper bracket into lower-bracket round 2 — it
-   *  never plays lower-bracket round 1 at all, since that round's reduction didn't need them.
-   *  Only round 2 is flagged: a drop into round 3 or later is just how the double-elimination
-   *  bracket normally feeds upper losers in, not something worth calling out. */
+  /** True when this side dropped straight from the upper bracket into lower-bracket round 2 or
+   *  later — it never plays lower-bracket round 1 at all, since that round's reduction didn't
+   *  need them. Shown as a "direto" badge on every such entry, whichever later round it lands in. */
   skippedRoundOne: boolean;
 }
 
@@ -107,11 +106,11 @@ export function buildIncomingRefMap(matches: Match[]): Map<string, IncomingRef> 
     }
     if (m.nextMatchLoser) {
       const dest = byId.get(m.nextMatchLoser.matchId);
-      // Only a real (non-BYE) upper-bracket loser dropping straight into lower-bracket round 2
+      // Only a real (non-BYE) upper-bracket loser dropping straight into lower-bracket round 2+
       // counts as "skipped round 1" — a lower-bracket-internal advance always proceeds
       // round-by-round.
       const skippedRoundOne =
-        m.bracket === 'upper' && !isByeMatch(m) && !m.byeSlot && dest?.bracket === 'lower' && dest.round === 2;
+        m.bracket === 'upper' && !isByeMatch(m) && !m.byeSlot && dest?.bracket === 'lower' && dest.round > 1;
       map.set(`${m.nextMatchLoser.matchId}:${m.nextMatchLoser.slot}`, {
         matchNumber: m.matchNumber,
         kind: 'perdedor',
