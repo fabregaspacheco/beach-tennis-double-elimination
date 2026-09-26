@@ -35,7 +35,9 @@ export interface Match {
   /** Where the loser of this match goes next. Only set for 'upper' and 'grandFinal' matches
    *  (lower-bracket and grandFinalReset losers are simply eliminated). */
   nextMatchLoser?: MatchSlotRef;
-  /** Set at draw time for a lower-bracket match that's guaranteed to only ever get one real
+  /** Legacy: no longer generated (leftovers of a lower-bracket reduction now drop straight into
+   *  the next round instead), but brackets drawn earlier and already saved still carry it.
+   *  Set at draw time for a lower-bracket match that's guaranteed to only ever get one real
    *  team — there just isn't another lower-bracket survivor available yet to pair it against.
    *  The moment that one team is placed, the match auto-resolves as a BYE instead of waiting
    *  for an opponent that was never coming. */

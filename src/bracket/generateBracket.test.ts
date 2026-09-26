@@ -167,18 +167,20 @@ describe('BYE — torneios com quantidade que não é potência de 2', () => {
     }
   });
 
-  it.each(oddSizes)(
-    'N=%i: toda partida marcada como byeSlot em draw acaba resolvendo como BYE depois de jogar tudo',
-    (n) => {
-      const category = makeCategory(n);
-      const byeSlotMatchIds = category.matches.filter((m) => m.byeSlot).map((m) => m.id);
-      const finished = playOut(category, () => true);
-      for (const id of byeSlotMatchIds) {
-        const m = finished.matches.find((x) => x.id === id)!;
-        expect(isByeMatch(m)).toBe(true);
-      }
-    },
-  );
+  it.each(oddSizes)('N=%i: a chave inferior não tem partidas de BYE — as sobras de uma redução entram direto na rodada seguinte', (n) => {
+    const matches = generateDoubleElimination('cat-1', makeTeams(n));
+    expect(matches.filter((m) => m.bracket === 'lower' && m.byeSlot)).toHaveLength(0);
+    // Every lower-bracket match is a genuine two-sided match: both of its slots are fed by something.
+    const fed = new Set<string>();
+    for (const m of matches) {
+      if (m.nextMatchWinner) fed.add(`${m.nextMatchWinner.matchId}:${m.nextMatchWinner.slot}`);
+      if (m.nextMatchLoser) fed.add(`${m.nextMatchLoser.matchId}:${m.nextMatchLoser.slot}`);
+    }
+    for (const m of matches.filter((x) => x.bracket === 'lower')) {
+      expect(fed.has(`${m.id}:A`)).toBe(true);
+      expect(fed.has(`${m.id}:B`)).toBe(true);
+    }
+  });
 
   it.each(oddSizes)('N=%i: toda referência nextMatchWinner/nextMatchLoser aponta para uma partida existente', (n) => {
     const matches = generateDoubleElimination('cat-1', makeTeams(n));
@@ -335,23 +337,13 @@ describe('matchNumber — numeração sequencial exibida na chave', () => {
     });
   });
 
-  it('uma partida cujo destino é um BYE da chave inferior ainda aparece como referência de origem para quem vem depois', () => {
-    // N=11 has lower-bracket byeSlot matches (see reportResult.test.ts) — the real match that
-    // feeds one should still show up as the source in buildIncomingRefMap, using that BYE match's
-    // own number (whoever it is, once the BYE resolves, is really just passing through).
-    const matches = generateDoubleElimination('cat-1', makeTeams(11));
-    const byeMatch = matches.find((m) => m.byeSlot)!;
-    expect(byeMatch).toBeTruthy();
-    expect(byeMatch.matchNumber).toBeGreaterThan(0);
-
-    const feeder = matches.find(
-      (m) => m.nextMatchWinner?.matchId === byeMatch.id || m.nextMatchLoser?.matchId === byeMatch.id,
-    )!;
-    expect(feeder).toBeTruthy();
-
+  it.each([11, 13])('N=%i: toda vaga da chave inferior tem uma referência de origem no mapa (nenhuma fica como "A definir")', (n) => {
+    const matches = generateDoubleElimination('cat-1', makeTeams(n));
     const refs = buildIncomingRefMap(matches);
-    const usedSlot = feeder.nextMatchWinner?.matchId === byeMatch.id ? feeder.nextMatchWinner : feeder.nextMatchLoser;
-    expect(refs.get(`${usedSlot!.matchId}:${usedSlot!.slot}`)?.matchNumber).toBe(feeder.matchNumber);
+    for (const m of matches.filter((x) => x.bracket === 'lower')) {
+      expect(refs.get(`${m.id}:A`)?.matchNumber).toBeGreaterThan(0);
+      expect(refs.get(`${m.id}:B`)?.matchNumber).toBeGreaterThan(0);
+    }
   });
 });
 
@@ -405,22 +397,18 @@ describe('remanejamento justo — perdedor da rodada 1 nunca fica em posição m
     expect(byId.get(m9.nextMatchLoser!.matchId)!.round).toBe(3);
   });
 
-  it.each([8, 12, 13, 14, 15, 16])('N=%i: contagem e formato da chave permanecem inalterados (não afetados por essa regra)', (n) => {
+  it.each([8, 9, 10, 11, 12, 13, 14, 15, 16])('N=%i: contagem total de partidas (sem partidas de BYE na chave inferior)', (n) => {
     const matches = generateDoubleElimination('cat-1', makeTeams(n));
-    const lower = matches.filter((m) => m.bracket === 'lower');
-    const lowerByes = lower.filter((m) => m.byeSlot).length;
-    // Snapshot values already verified by the existing structure tests above — this just confirms
-    // the fairness fix (scoped to N=9,10,11 only) doesn't perturb these.
-    const expected: Record<number, { total: number; lowerByes: number }> = {
-      8: { total: 15, lowerByes: 0 },
-      12: { total: 27, lowerByes: 0 },
-      13: { total: 31, lowerByes: 3 },
-      14: { total: 31, lowerByes: 2 },
-      15: { total: 31, lowerByes: 1 },
-      16: { total: 31, lowerByes: 0 },
-    };
-    expect(matches.length).toBe(expected[n].total);
-    expect(lowerByes).toBe(expected[n].lowerByes);
+    // upper (always size-1, BYEs included) + grand final + reset + lower (only real matches).
+    // Real lower-bracket matches = entrants that need eliminating = real upper losers - 1.
+    const upperRoundOneReal = matches.filter(
+      (m) => m.bracket === 'upper' && m.round === 1 && m.teamAId && m.teamBId,
+    ).length;
+    const upperOtherLosers = matches.filter((m) => m.bracket === 'upper' && m.round > 1).length;
+    const expectedLower = upperRoundOneReal + upperOtherLosers - 1;
+    const expected: Record<number, number> = { 8: 15, 9: 24, 10: 25, 11: 26, 12: 27, 13: 28, 14: 29, 15: 30, 16: 31 };
+    expect(matches.filter((m) => m.bracket === 'lower')).toHaveLength(expectedLower);
+    expect(matches.length).toBe(expected[n]);
   });
 });
 
@@ -461,13 +449,15 @@ describe('remanejamento justo — dentro de uma redução, quem só pode ter 0 v
     expect(protectedIds.has(feederB.id)).toBe(false);
   });
 
-  it.each([13, 14, 15])('N=%i: toda partida "protegida" recebe BYE automático (nunca é forçada a jogar)', (n) => {
+  it.each([13, 14, 15])('N=%i: todo perdedor "protegido" entra direto na Rodada 2 (nunca é forçado a jogar a Rodada 1)', (n) => {
     const matches = generateDoubleElimination('cat-1', makeTeams(n));
     const protectedIds = classifyPoolEntries(matches);
+    expect(protectedIds.size).toBeGreaterThan(0);
     for (const id of protectedIds) {
       const feeder = matches.find((m) => m.id === id)!;
       const dest = matches.find((m) => m.id === feeder.nextMatchLoser!.matchId)!;
-      expect(dest.byeSlot).toBeDefined();
+      expect(dest.bracket).toBe('lower');
+      expect(dest.round).toBe(2);
     }
   });
 });
@@ -484,13 +474,22 @@ describe('IncomingRef.skippedRoundOne — sinaliza quem cai direto da chave supe
     }
   });
 
-  it('N=13: quem cai numa partida de BYE da Rodada 1 (mesmo sem jogar) NÃO conta como "pulou a rodada 1"', () => {
-    // #9, #11 and #12 land in round-1 BYE matches (#17/#18/#19) — they have a round-1 slot, it's
-    // just automatic. That's already conveyed by the dashed BYE connector, not this badge.
+  it('N=13: Perdedor#9, #11 e #12 também entram direto na Rodada 2 (não há mais cartão de BYE)', () => {
     const matches = generateDoubleElimination('cat-1', makeTeams(13));
     const refs = buildIncomingRefMap(matches);
     const byNum = new Map(matches.map((m) => [m.matchNumber, m]));
     for (const n of [9, 11, 12]) {
+      const m = byNum.get(n)!;
+      const ref = refs.get(`${m.nextMatchLoser!.matchId}:${m.nextMatchLoser!.slot}`)!;
+      expect(ref.skippedRoundOne).toBe(true);
+    }
+  });
+
+  it('N=13: quem cai nas semifinais/final superior (Rodadas 4+ da inferior) NÃO recebe o selo — só a Rodada 2', () => {
+    const matches = generateDoubleElimination('cat-1', makeTeams(13));
+    const refs = buildIncomingRefMap(matches);
+    const byNum = new Map(matches.map((m) => [m.matchNumber, m]));
+    for (const n of [13, 14, 15]) {
       const m = byNum.get(n)!;
       const ref = refs.get(`${m.nextMatchLoser!.matchId}:${m.nextMatchLoser!.slot}`)!;
       expect(ref.skippedRoundOne).toBe(false);

@@ -31,10 +31,10 @@ interface PendingSource {
  *    round of real matches, survivor `i` against fresh dropper `i`;
  *  - otherwise, whichever side is bigger is reduced (paired down, halving each round) until it
  *    matches the smaller side, *then* they're merged 1:1.
- * Reducing a side only ever leaves an explicit BYE (see `byeSlot` on `Match`) when it truly can't
- * pair evenly — an odd one out with nobody left to play. This is what keeps a power-of-two team
- * count completely BYE-free in the lower bracket (there's always exactly enough real teams at
- * every step) while still handling any other count correctly.
+ * When a reduction can't pair everyone evenly, whoever is left over isn't given a BYE card: they're
+ * carried straight into the next pass (or the 1:1 merge), i.e. they drop directly into a later
+ * round's match. Brackets drawn before this change may still contain explicit `byeSlot` matches,
+ * which the rest of the app keeps handling.
  */
 export function generateDoubleElimination(categoryId: string, teams: Team[]): Match[] {
   const N = teams.length;
@@ -158,9 +158,7 @@ export function generateDoubleElimination(categoryId: string, teams: Team[]): Ma
 
   /** One round of eliminating `current` down to `target` entries — only valid when that's
    *  achievable in a single pass (`target` is at least half of `current.length`): pairs up just
-   *  enough into real matches, and gives everyone left over their own explicit BYE match (see
-   *  `byeSlot`) rather than silently carrying them forward, so the lower bracket's flow never has
-   *  an invisible gap. */
+   *  enough into real matches, and carries everyone left over forward untouched. */
   function eliminateOnePass(current: PendingSource[], target: number): PendingSource[] {
     lowerRound += 1;
     const matchesNeeded = current.length - target;
@@ -190,27 +188,12 @@ export function generateDoubleElimination(categoryId: string, teams: Team[]): Ma
       byId.get(b.matchId)![b.field] = { matchId: id, slot: 'B' };
       next.push({ matchId: id, field: 'nextMatchWinner' });
     }
+    // Whoever's left over has no one to play this pass — they're carried straight into whatever
+    // the next pass (or the merge with the other group) pairs them with, instead of getting a
+    // BYE card of their own. The entry is used as-is: it still points at the upper-bracket
+    // loser (or earlier lower-bracket winner) it always did.
     for (; idx < current.length; idx += 1) {
-      slot += 1;
-      const id = `L-R${lowerRound}-M${slot}`;
-      addMatch({
-        id,
-        categoryId,
-        bracket: 'lower',
-        round: lowerRound,
-        slot,
-        teamAId: null,
-        teamBId: null,
-        scoreA: null,
-        scoreB: null,
-        winnerId: null,
-        loserId: null,
-        status: 'pending',
-        byeSlot: 'B',
-      });
-      const leftover = current[idx];
-      byId.get(leftover.matchId)![leftover.field] = { matchId: id, slot: 'A' };
-      next.push({ matchId: id, field: 'nextMatchWinner' });
+      next.push(current[idx]);
     }
     return next;
   }

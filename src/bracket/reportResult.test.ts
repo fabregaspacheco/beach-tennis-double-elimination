@@ -71,39 +71,57 @@ describe('clearMatchResult — desfazer partidas que alimentam um BYE em cadeia'
     expect(category.runnerUpTeamId).toBeNull();
   });
 
-  it('desfazer uma partida cujo perdedor caiu direto num BYE limpa a partida seguinte real', () => {
-    // N=11 has lower-bracket slots that are guaranteed BYEs (byeSlot set) — a real match's
-    // loser lands there and the match auto-resolves. Find one, undo whatever fed it, and confirm
-    // the BYE match it fed is fully unwound (not left dangling as a phantom "done" match).
-    let category = playOut(makeCategory(11));
-    const byeMatch = category.matches.find((m) => m.byeSlot && m.status === 'done')!;
-    expect(byeMatch).toBeTruthy();
+  it('chaves antigas (já salvas) com partida byeSlot na chave inferior ainda podem ser jogadas e desfeitas', () => {
+    // The generator no longer emits lower-bracket BYE matches, but brackets drawn before that
+    // change are still stored with them. Rebuild one by hand: reroute U-R1-M1's loser through a
+    // legacy byeSlot match that then feeds where the loser used to land directly.
+    const base = makeCategory(8);
+    const matches = base.matches.map((m) => ({ ...m }));
+    const feeder = matches.find((m) => m.id === 'U-R1-M1')!;
+    const target = feeder.nextMatchLoser!;
+    matches.push({
+      id: 'L-LEGACY-BYE',
+      categoryId: 'cat-1',
+      bracket: 'lower',
+      round: 1,
+      slot: 9,
+      teamAId: null,
+      teamBId: null,
+      scoreA: null,
+      scoreB: null,
+      winnerId: null,
+      loserId: null,
+      status: 'pending',
+      byeSlot: 'B',
+      nextMatchWinner: target,
+    });
+    feeder.nextMatchLoser = { matchId: 'L-LEGACY-BYE', slot: 'A' };
+    let category: Category = { ...base, matches };
 
-    // Find whichever real match fed this BYE (its nextMatchWinner or nextMatchLoser points here).
-    const feeder = category.matches.find(
-      (m) => m.nextMatchWinner?.matchId === byeMatch.id || m.nextMatchLoser?.matchId === byeMatch.id,
-    );
-    if (!feeder || feeder.loserId === null) return; // BYE was fed by a round-1 BYE itself, nothing to undo here
+    category = playOut(category);
+    expect(isByeMatch(category.matches.find((m) => m.id === 'L-LEGACY-BYE')!)).toBe(true);
 
-    // Undo everything downstream first (retry loop), then the feeder itself.
     let remaining = category.matches.filter((m) => m.status === 'done' && m.loserId !== null).map((m) => m.id);
     let guard = 0;
-    while (remaining.includes(feeder.id)) {
+    while (remaining.length > 0) {
       guard += 1;
       if (guard > 200) throw new Error('Loop de undo não convergiu.');
+      let progressed = false;
       for (const id of [...remaining]) {
         try {
           category = clearMatchResult(category, id);
           remaining = remaining.filter((x) => x !== id);
+          progressed = true;
         } catch {
           // not ready yet
         }
       }
+      if (!progressed) throw new Error(`Deadlock ao desfazer: ${remaining.join(', ')}`);
     }
 
-    const unwoundBye = category.matches.find((m) => m.id === byeMatch.id)!;
-    expect(unwoundBye.status).not.toBe('done');
-    expect(unwoundBye.winnerId).toBeNull();
-    expect(unwoundBye.teamAId === null || unwoundBye.teamBId === null).toBe(true);
+    const legacy = category.matches.find((m) => m.id === 'L-LEGACY-BYE')!;
+    expect(legacy.status).not.toBe('done');
+    expect(legacy.winnerId).toBeNull();
+    expect(legacy.teamAId).toBeNull();
   });
 });
