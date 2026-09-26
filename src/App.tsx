@@ -127,7 +127,7 @@ export default function App() {
       categories: [],
       status: 'created',
     };
-    setTournaments((prev) => [...prev, tournament]);
+    setTournaments((prev) => [tournament, ...prev]);
     setSelectedTournamentId(tournament.id);
     setSelectedCategoryId(null);
   }
