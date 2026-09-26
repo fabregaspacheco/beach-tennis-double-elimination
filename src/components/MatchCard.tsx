@@ -38,6 +38,10 @@ export function MatchCard({ category, match, onClick, onSetTime, incomingRefs }:
       : slotLabel(match.id, 'B', incomingRefs);
   const aWon = match.status === 'done' && match.winnerId === match.teamAId;
   const bWon = match.status === 'done' && match.winnerId === match.teamBId;
+  // Flagged even after the name resolves — a BYE already gets its own round-1 slot, but this side
+  // has none at all, having dropped straight from the upper bracket into round 2 or later.
+  const skippedA = incomingRefs.get(`${match.id}:A`)?.skippedRoundOne ?? false;
+  const skippedB = incomingRefs.get(`${match.id}:B`)?.skippedRoundOne ?? false;
 
   return (
     <div className="match-slot">
@@ -71,11 +75,25 @@ export function MatchCard({ category, match, onClick, onSetTime, incomingRefs }:
         disabled={!clickable}
       >
         <div className={`team-row${aWon ? ' team-row--winner' : ''}${match.teamAId ? '' : ' team-row--tbd'}`}>
-          <span className="team-name">{nameA}</span>
+          <span className="team-name-wrap">
+            <span className="team-name">{nameA}</span>
+            {skippedA && (
+              <span className="skip-r1-badge" title="Caiu direto da chave superior — não jogou a Rodada 1 da chave inferior">
+                direto
+              </span>
+            )}
+          </span>
           {match.scoreA !== null && <span className="score">{match.scoreA}</span>}
         </div>
         <div className={`team-row${bWon ? ' team-row--winner' : ''}${match.teamBId ? '' : ' team-row--tbd'}`}>
-          <span className="team-name">{nameB}</span>
+          <span className="team-name-wrap">
+            <span className="team-name">{nameB}</span>
+            {skippedB && (
+              <span className="skip-r1-badge" title="Caiu direto da chave superior — não jogou a Rodada 1 da chave inferior">
+                direto
+              </span>
+            )}
+          </span>
           {match.scoreB !== null && <span className="score">{match.scoreB}</span>}
         </div>
       </button>

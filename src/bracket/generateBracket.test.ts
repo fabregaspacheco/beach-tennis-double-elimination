@@ -326,10 +326,12 @@ describe('matchNumber — numeração sequencial exibida na chave', () => {
     expect(refs.get(`${winnerTarget.matchId}:${winnerTarget.slot}`)).toEqual({
       matchNumber: r1m2.matchNumber,
       kind: 'vencedor',
+      skippedRoundOne: false,
     });
     expect(refs.get(`${loserTarget.matchId}:${loserTarget.slot}`)).toEqual({
       matchNumber: r1m2.matchNumber,
       kind: 'perdedor',
+      skippedRoundOne: false, // N=8 has no BYEs — round-1 losers always land in lower-bracket round 1
     });
   });
 
@@ -466,6 +468,40 @@ describe('remanejamento justo — dentro de uma redução, quem só pode ter 0 v
       const feeder = matches.find((m) => m.id === id)!;
       const dest = matches.find((m) => m.id === feeder.nextMatchLoser!.matchId)!;
       expect(dest.byeSlot).toBeDefined();
+    }
+  });
+});
+
+describe('IncomingRef.skippedRoundOne — sinaliza quem cai direto da chave superior sem jogar a Rodada 1 da chave inferior', () => {
+  it('N=13: Perdedor#2, #6, #8 e #10 pulam a Rodada 1 (entram direto na Rodada 2)', () => {
+    const matches = generateDoubleElimination('cat-1', makeTeams(13));
+    const refs = buildIncomingRefMap(matches);
+    const byNum = new Map(matches.map((m) => [m.matchNumber, m]));
+    for (const n of [2, 6, 8, 10]) {
+      const m = byNum.get(n)!;
+      const ref = refs.get(`${m.nextMatchLoser!.matchId}:${m.nextMatchLoser!.slot}`)!;
+      expect(ref.skippedRoundOne).toBe(true);
+    }
+  });
+
+  it('N=13: quem cai numa partida de BYE da Rodada 1 (mesmo sem jogar) NÃO conta como "pulou a rodada 1"', () => {
+    // #9, #11 and #12 land in round-1 BYE matches (#17/#18/#19) — they have a round-1 slot, it's
+    // just automatic. That's already conveyed by the dashed BYE connector, not this badge.
+    const matches = generateDoubleElimination('cat-1', makeTeams(13));
+    const refs = buildIncomingRefMap(matches);
+    const byNum = new Map(matches.map((m) => [m.matchNumber, m]));
+    for (const n of [9, 11, 12]) {
+      const m = byNum.get(n)!;
+      const ref = refs.get(`${m.nextMatchLoser!.matchId}:${m.nextMatchLoser!.slot}`)!;
+      expect(ref.skippedRoundOne).toBe(false);
+    }
+  });
+
+  it.each([8, 9, 10, 11, 12, 14, 15, 16])('N=%i: nenhum vencedor (avanço normal dentro da chave inferior) é marcado como pulo de rodada', (n) => {
+    const matches = generateDoubleElimination('cat-1', makeTeams(n));
+    const refs = buildIncomingRefMap(matches);
+    for (const ref of refs.values()) {
+      if (ref.kind === 'vencedor') expect(ref.skippedRoundOne).toBe(false);
     }
   });
 });

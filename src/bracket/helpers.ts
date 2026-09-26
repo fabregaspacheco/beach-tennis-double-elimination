@@ -82,12 +82,19 @@ export function isByeMatch(match: Match): boolean {
 export interface IncomingRef {
   matchNumber: number;
   kind: 'vencedor' | 'perdedor';
+  /** True when this side dropped straight from the upper bracket into lower-bracket round 2 or
+   *  later — it never plays (or gets a BYE in) lower-bracket round 1 at all. Distinct from a BYE:
+   *  a BYE still occupies a round-1 slot, just an automatic one; this entrant has no round-1 slot
+   *  whatsoever, since the reduction/merge that round needed didn't require them yet. */
+  skippedRoundOne: boolean;
 }
 
-/** Maps "matchId:slot" -> where that slot's team will come from (which match number, and whether
- *  it's the winner or loser side of it), for every slot that's fed by another match's outcome.
- *  Lets a still-empty slot read "Vencedor #7" / "Perdedor #7" instead of a bare "A definir". */
+/** Maps "matchId:slot" -> where that slot's team will come from (which match number, whether it's
+ *  the winner or loser side of it, and whether they skipped lower-bracket round 1 entirely), for
+ *  every slot that's fed by another match's outcome. Lets a still-empty slot read "Vencedor #7" /
+ *  "Perdedor #7" instead of a bare "A definir", and flags round-1 skips even once the name is known. */
 export function buildIncomingRefMap(matches: Match[]): Map<string, IncomingRef> {
+  const byId = new Map(matches.map((m) => [m.id, m]));
   const map = new Map<string, IncomingRef>();
   for (const m of matches) {
     if (m.matchNumber == null) continue;
@@ -95,12 +102,20 @@ export function buildIncomingRefMap(matches: Match[]): Map<string, IncomingRef> 
       map.set(`${m.nextMatchWinner.matchId}:${m.nextMatchWinner.slot}`, {
         matchNumber: m.matchNumber,
         kind: 'vencedor',
+        skippedRoundOne: false, // advancing by winning always proceeds round-by-round, never skips
       });
     }
     if (m.nextMatchLoser) {
+      const dest = byId.get(m.nextMatchLoser.matchId);
+      // Only a real (non-BYE) upper-bracket loser dropping straight into lower-bracket round 2+
+      // counts as "skipped round 1" — a lower-bracket-internal advance always proceeds
+      // round-by-round, and a BYE already gets its own round-1 slot (just an automatic one).
+      const skippedRoundOne =
+        m.bracket === 'upper' && !isByeMatch(m) && !m.byeSlot && dest?.bracket === 'lower' && dest.round > 1;
       map.set(`${m.nextMatchLoser.matchId}:${m.nextMatchLoser.slot}`, {
         matchNumber: m.matchNumber,
         kind: 'perdedor',
+        skippedRoundOne: Boolean(skippedRoundOne),
       });
     }
   }
