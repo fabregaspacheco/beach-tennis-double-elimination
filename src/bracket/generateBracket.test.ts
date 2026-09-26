@@ -421,3 +421,51 @@ describe('remanejamento justo — perdedor da rodada 1 nunca fica em posição m
     expect(lowerByes).toBe(expected[n].lowerByes);
   });
 });
+
+describe('remanejamento justo — dentro de uma redução, quem só pode ter 0 vitórias joga antes de qualquer "protegido"', () => {
+  // Some round-1 pairs are "both real" (no BYE on either side), so their losers never go through
+  // the previous fix's swap — they're guaranteed 0-and-1, same as anyone who lost their only
+  // match. When the lower-bracket pool mixes these "unprotected" losers with "protected" ones
+  // (swapped in from a round-2 sibling match, so potentially 1-and-1), a reduction pass should
+  // always exhaust the unprotected group first — never make a protected entry play a real match
+  // while an unprotected peer sits idle waiting for an automatic BYE it didn't earn any more than
+  // the one being forced to play.
+  function classifyPoolEntries(matches: Match[]) {
+    const byId = new Map(matches.map((m) => [m.id, m]));
+    const upperR1 = matches.filter((m) => m.bracket === 'upper' && m.round === 1).sort((a, b) => a.slot - b.slot);
+    const protectedIds = new Set<string>(); // matchIds whose loser is a "protected" pool entry
+    for (let i = 0; i < upperR1.length; i += 2) {
+      const a = upperR1[i];
+      const b = upperR1[i + 1];
+      const aIsBye = !a.teamAId || !a.teamBId;
+      const bIsBye = !b.teamAId || !b.teamBId;
+      if (aIsBye === bIsBye) continue; // both real (unprotected pair) or both BYE — no swap here
+      const real = aIsBye ? b : a;
+      protectedIds.add(byId.get(real.nextMatchWinner!.matchId)!.id); // the round-2 sibling match
+    }
+    return protectedIds;
+  }
+
+  it.each([13, 14, 15])('N=%i: a partida #16 pareia dois perdedores garantidamente 0-1, não um "protegido"', (n) => {
+    const matches = generateDoubleElimination('cat-1', makeTeams(n));
+    const protectedIds = classifyPoolEntries(matches);
+    const m16 = matches.find((m) => m.matchNumber === 16)!;
+    expect(m16.bracket).toBe('lower');
+    expect(m16.byeSlot).toBeUndefined(); // a genuine two-sided match, not an automatic BYE
+
+    const feederA = matches.find((f) => f.nextMatchLoser?.matchId === m16.id && f.nextMatchLoser.slot === 'A')!;
+    const feederB = matches.find((f) => f.nextMatchLoser?.matchId === m16.id && f.nextMatchLoser.slot === 'B')!;
+    expect(protectedIds.has(feederA.id)).toBe(false);
+    expect(protectedIds.has(feederB.id)).toBe(false);
+  });
+
+  it.each([13, 14, 15])('N=%i: toda partida "protegida" recebe BYE automático (nunca é forçada a jogar)', (n) => {
+    const matches = generateDoubleElimination('cat-1', makeTeams(n));
+    const protectedIds = classifyPoolEntries(matches);
+    for (const id of protectedIds) {
+      const feeder = matches.find((m) => m.id === id)!;
+      const dest = matches.find((m) => m.id === feeder.nextMatchLoser!.matchId)!;
+      expect(dest.byeSlot).toBeDefined();
+    }
+  });
+});

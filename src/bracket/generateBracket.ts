@@ -271,10 +271,22 @@ export function generateDoubleElimination(categoryId: string, teams: Team[]): Ma
     }
 
     if (r === 1) {
-      pool = arrivals.map((entry) => {
-        const swapped = swapRoundOneForRoundTwo.get(entry.matchId);
-        return swapped ? { matchId: swapped, field: 'nextMatchLoser' as const } : entry;
+      // Some round-1 pairs are "both real" (no BYE involved), so their losers never get the
+      // swap above — they stay genuinely 0-and-1, same as anyone else who lost their only match.
+      // When the pool ends up with a mix of these "unprotected" losers and "protected" ones (from
+      // the swap), a reduction pass later on would otherwise pick whichever two happen to be
+      // first in the array — sometimes a protected entry, purely by position, even though there
+      // are unprotected peers available who'd make a fairer opponent for each other. Sorting
+      // unprotected entries first (stable, so relative order — and thus the anti-rematch mixing —
+      // is preserved within each group) means a reduction always exhausts the unprotected group
+      // before ever touching a protected one.
+      const withFlag = arrivals.map((entry) => {
+        const sibling = swapRoundOneForRoundTwo.get(entry.matchId);
+        return sibling
+          ? { source: { matchId: sibling, field: 'nextMatchLoser' as const }, protected: true }
+          : { source: entry, protected: false };
       });
+      pool = [...withFlag.filter((e) => !e.protected), ...withFlag.filter((e) => e.protected)].map((e) => e.source);
       continue;
     }
 
