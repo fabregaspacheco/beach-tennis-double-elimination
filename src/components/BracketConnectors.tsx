@@ -1,5 +1,6 @@
 import { useLayoutEffect, useState, type RefObject } from 'react';
 import type { Match } from '../types';
+import { isByeMatch } from '../bracket/helpers';
 
 interface BracketConnectorsProps {
   /** The `.bracket-columns` element these matches are rendered inside. */
@@ -13,6 +14,9 @@ interface BracketConnectorsProps {
 interface Connector {
   linePath: string;
   arrowPath: string;
+  /** True when the source match is a BYE — the team on the other end advanced for free rather
+   *  than winning a real match, so the connector reads as dashed instead of solid. */
+  bye: boolean;
 }
 
 const ARROW_LENGTH = 7;
@@ -66,7 +70,11 @@ export function BracketConnectors({ containerRef, matches }: BracketConnectorsPr
             : `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${tipX - ARROW_LENGTH} ${y2}`;
         const arrowPath = `M ${tipX} ${y2} L ${tipX - ARROW_LENGTH} ${y2 - ARROW_HALF_WIDTH} L ${tipX - ARROW_LENGTH} ${y2 + ARROW_HALF_WIDTH} Z`;
 
-        next.push({ linePath, arrowPath });
+        // A lower-bracket `byeSlot` match is a guaranteed BYE from the moment the bracket is
+        // drawn, even before it actually resolves (`isByeMatch` only turns true once its one live
+        // side is fed) — MatchCard already shows it as a BYE card immediately for the same reason,
+        // so the connector leading out of it should read as dashed from the start too.
+        next.push({ linePath, arrowPath, bye: isByeMatch(m) || Boolean(m.byeSlot) });
       }
 
       setSize({ width: containerRect.width, height: containerRect.height });
@@ -93,8 +101,14 @@ export function BracketConnectors({ containerRef, matches }: BracketConnectorsPr
           but turn into a solid black blob in the exported image. */}
       {connectors.map((c, i) => (
         <g key={i}>
-          <path d={c.linePath} fill="none" stroke="#9c8f72" strokeWidth={1.5} />
-          <path d={c.arrowPath} fill="#9c8f72" stroke="none" />
+          <path
+            d={c.linePath}
+            fill="none"
+            stroke={c.bye ? '#c2b8a3' : '#9c8f72'}
+            strokeWidth={1.5}
+            strokeDasharray={c.bye ? '5 4' : undefined}
+          />
+          <path d={c.arrowPath} fill={c.bye ? '#c2b8a3' : '#9c8f72'} stroke="none" />
         </g>
       ))}
     </svg>
