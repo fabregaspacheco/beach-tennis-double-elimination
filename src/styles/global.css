@@ -889,6 +889,13 @@ button {
   font-size: 0.85rem;
   text-align: left;
   cursor: default;
+  /* Cards are <button>s, disabled whenever they can't be clicked — always, for a visitor.
+     Browsers grey out a disabled button's text, which washed out the whole bracket, so the
+     colour is pinned explicitly. */
+  color: var(--ink);
+}
+.match-card:disabled {
+  color: var(--ink);
 }
 .match-card--ready {
   border-color: var(--teal);
