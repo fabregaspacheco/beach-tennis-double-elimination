@@ -2,9 +2,21 @@ rules_version = '2';
 
 service firebase.storage {
   match /b/{bucket}/o {
-    // Sponsor logos. Same posture as firestore.rules: open on purpose, no login system yet.
+    // Same admin list as firestore.rules and src/auth/admins.ts — keep all three in sync.
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower() in [
+          'fabriciocpacheco@gmail.com',
+          'oreiastreamer@gmail.com'
+        ];
+    }
+
+    // Sponsor logos: public to view (they're shown to everyone and in shared images),
+    // uploaded or removed only by admins.
     match /sponsors/{allPaths=**} {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     match /{allPaths=**} {

@@ -1,4 +1,5 @@
 import { initializeApp } from 'firebase/app';
+import { getAuth } from 'firebase/auth';
 import { initializeFirestore, persistentLocalCache, persistentSingleTabManager } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 
@@ -23,3 +24,5 @@ export const db = initializeFirestore(firebaseApp, {
 });
 
 export const storage = getStorage(firebaseApp);
+
+export const auth = getAuth(firebaseApp);

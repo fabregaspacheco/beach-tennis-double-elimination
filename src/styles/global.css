@@ -70,6 +70,34 @@ button {
   cursor: pointer;
 }
 
+/* ---- admin sign-in bar ---- */
+.admin-bar {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 8px var(--page-gutter) 0;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.admin-bar-link {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+.admin-bar-user {
+  overflow-wrap: anywhere;
+}
+
+.admin-bar-error {
+  color: var(--danger);
+  flex-basis: 100%;
+  text-align: right;
+}
+
 .app-header {
   padding: 20px var(--page-gutter) 12px;
   position: relative;

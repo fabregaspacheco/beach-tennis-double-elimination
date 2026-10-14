@@ -2,11 +2,22 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Whole app state lives in this one document. Open read/write on purpose — there's no
-    // login system yet, and anyone with the link is meant to be able to follow and run the
-    // tournament. Revisit this if the app ever needs to restrict who can edit results.
+    // Admins: signed in with Google using one of these emails. Keep in sync with
+    // src/auth/admins.ts and storage.rules.
+    function isAdmin() {
+      return request.auth != null
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower() in [
+          'fabriciocpacheco@gmail.com',
+          'oreiastreamer@gmail.com'
+        ];
+    }
+
+    // Whole app state lives in this one document. Anyone with the link can follow the
+    // tournaments live; only admins can change them.
     match /app/tournaments {
-      allow read, write: if true;
+      allow read: if true;
+      allow write: if isAdmin();
     }
 
     // Everything else is denied by default.

@@ -13,6 +13,8 @@ interface TournamentSetupProps {
   onDraw: () => void;
   drawError: string | null;
   locked?: boolean;
+  /** Visitor view: shows the registered teams, hides every way to change them or draw. */
+  readOnly?: boolean;
 }
 
 export function TournamentSetup({
@@ -23,6 +25,7 @@ export function TournamentSetup({
   onDraw,
   drawError,
   locked = false,
+  readOnly = false,
 }: TournamentSetupProps) {
   const [teamName, setTeamName] = useState('');
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -31,6 +34,8 @@ export function TournamentSetup({
   const count = category.teams.length;
   const ready = count >= MIN_TEAMS;
   const byes = ready ? nextPowerOfTwo(count) - count : 0;
+
+  const editable = !locked && !readOnly;
 
   const bulkNames = useMemo(() => parseBulkTeamNames(bulkText), [bulkText]);
 
@@ -52,9 +57,9 @@ export function TournamentSetup({
     <div className="setup-panel">
       <h3>Duplas — {category.name}</h3>
 
-      {locked && <p className="lock-banner">🔒 Torneio concluído — reabra para cadastrar duplas ou sortear a chave.</p>}
+      {locked && !readOnly && <p className="lock-banner">🔒 Torneio concluído — reabra para cadastrar duplas ou sortear a chave.</p>}
 
-      {!locked && !bulkOpen && (
+      {editable && !bulkOpen && (
         <>
           <div className="setup-add-row">
             <input
@@ -76,7 +81,7 @@ export function TournamentSetup({
         </>
       )}
 
-      {!locked && bulkOpen && (
+      {editable && bulkOpen && (
         <div className="bulk-panel">
           <p className="bulk-hint">
             Cole a lista abaixo, uma dupla por linha. Numeração, marcadores (1., 2), -, *) e espaços extras são
@@ -126,7 +131,7 @@ export function TournamentSetup({
         {category.teams.map((t) => (
           <li key={t.id}>
             <span>{t.name}</span>
-            {!locked && (
+            {editable && (
               <button type="button" className="btn btn--ghost btn--small" onClick={() => onRemoveTeam(t.id)}>
                 Remover
               </button>
@@ -139,13 +144,17 @@ export function TournamentSetup({
       <div className="setup-footer">
         <span className={`team-count${ready ? ' team-count--ok' : ''}`}>
           {count} dupla{count === 1 ? '' : 's'} cadastrada{count === 1 ? '' : 's'}
-          {!ready && ` — precisa de pelo menos ${MIN_TEAMS}`}
+          {!ready && !readOnly && ` — precisa de pelo menos ${MIN_TEAMS}`}
         </span>
-        <button type="button" className="btn btn--accent" disabled={!ready || locked} onClick={onDraw}>
-          Sortear chave
-        </button>
+        {readOnly ? (
+          <span className="team-count">Chave ainda não sorteada</span>
+        ) : (
+          <button type="button" className="btn btn--accent" disabled={!ready || locked} onClick={onDraw}>
+            Sortear chave
+          </button>
+        )}
       </div>
-      {ready && byes > 0 && (
+      {!readOnly && ready && byes > 0 && (
         <p className="bye-hint">
           {`${count} não é potência de 2 — ${byes} ${byes === 1 ? 'dupla vai' : 'duplas vão'} receber BYE (${byes === 1 ? 'avança' : 'avançam'} direto pra Rodada 2 da chave superior), sorteada${byes === 1 ? '' : 's'} aleatoriamente.`}
         </p>
