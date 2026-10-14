@@ -1283,3 +1283,44 @@ button {
   font-weight: 600;
   color: var(--ink-soft);
 }
+
+/* ---- phones ---- */
+/* On a ~375px screen the desktop spacing (40px gutters + the snapshot frame's own padding)
+   left room for barely one bracket column. Here the bracket goes edge to edge and the
+   columns get narrower, so two rounds fit side by side. */
+@media (max-width: 640px) {
+  :root {
+    --page-gutter: 12px;
+  }
+
+  .app-header h1 {
+    font-size: 1.3rem;
+  }
+
+  .back-button {
+    position: static;
+    margin-bottom: 8px;
+  }
+
+  .snapshot-capture {
+    margin: 0 calc(-1 * var(--page-gutter));
+    padding: 14px 10px 16px;
+  }
+
+  .bracket-columns {
+    gap: 22px;
+  }
+
+  .bracket-column {
+    min-width: 158px;
+  }
+
+  .match-card {
+    font-size: 0.8rem;
+  }
+
+  .team-row {
+    padding: 7px 8px;
+    gap: 6px;
+  }
+}
