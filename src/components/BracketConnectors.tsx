@@ -1,10 +1,8 @@
-import { useLayoutEffect, useState, type RefObject } from 'react';
+import { useLayoutEffect, useRef, useState } from 'react';
 import type { Match } from '../types';
 import { isByeMatch } from '../bracket/helpers';
 
 interface BracketConnectorsProps {
-  /** The `.bracket-columns` element these matches are rendered inside. */
-  containerRef: RefObject<HTMLDivElement | null>;
   /** Every match belonging to this one bracket tree (e.g. all `upper` matches). Connectors are
    *  only drawn between two matches that are both in this list — a match whose winner goes
    *  elsewhere (the upper bracket final going to the Grand Final, say) is simply skipped. */
@@ -32,18 +30,23 @@ const ARROW_HALF_WIDTH = 4;
  * html-to-image (used for the "share snapshot" export) doesn't rasterize markers correctly, so
  * they'd render fine on screen but come out as a distorted blob in the exported image. Every
  * connector always ends in a rightward horizontal segment, so the arrow orientation never varies.
+ *
+ * Must be rendered as a direct child of the `.bracket-columns` element whose cards it connects:
+ * it measures against its own parent. (It used to take a ref to that parent instead, but React
+ * runs a child's layout effect before attaching the parent's ref, so on the very first render
+ * the ref was still empty and no arrows were drawn until something else re-rendered the board.)
  */
-export function BracketConnectors({ containerRef, matches }: BracketConnectorsProps) {
+export function BracketConnectors({ matches }: BracketConnectorsProps) {
+  const svgRef = useRef<SVGSVGElement>(null);
   const [connectors, setConnectors] = useState<Connector[]>([]);
   const [size, setSize] = useState({ width: 0, height: 0 });
 
   useLayoutEffect(() => {
-    const container = containerRef.current;
+    const container = svgRef.current?.parentElement;
     if (!container) return;
+    const containerEl: HTMLElement = container;
 
     function measure() {
-      const containerEl = containerRef.current;
-      if (!containerEl) return;
       const containerRect = containerEl.getBoundingClientRect();
       const next: Connector[] = [];
       const elbows: {
@@ -159,12 +162,11 @@ export function BracketConnectors({ containerRef, matches }: BracketConnectorsPr
       ro.disconnect();
       window.removeEventListener('resize', measure);
     };
-  }, [containerRef, matches]);
-
-  if (size.width === 0) return null;
+  }, [matches]);
 
   return (
-    <svg className="bracket-connectors" width={size.width} height={size.height} aria-hidden="true">
+    // Always rendered (zero-sized until measured) so svgRef can find the container right away.
+    <svg ref={svgRef} className="bracket-connectors" width={size.width} height={size.height} aria-hidden="true">
       {/* fill/stroke are set as plain SVG attributes, not CSS classes: html-to-image (used by the
           "share snapshot" export) doesn't reliably inline class-based styles onto SVG elements
           when it serializes the page, so a className-only line here would render fine on screen

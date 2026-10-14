@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import type { Category, Match } from '../types';
 import { MatchCard } from './MatchCard';
 import { BracketConnectors } from './BracketConnectors';
@@ -64,15 +64,13 @@ export function BracketBoard({ category, onMatchClick, onSetMatchTime }: Bracket
 
   const upperMatches = category.matches.filter((m) => m.bracket === 'upper');
   const lowerMatches = category.matches.filter((m) => m.bracket === 'lower');
-  const upperColumnsRef = useRef<HTMLDivElement>(null);
-  const lowerColumnsRef = useRef<HTMLDivElement>(null);
   const incomingRefs = useMemo(() => buildIncomingRefMap(category.matches), [category.matches]);
 
   return (
     <div className="bracket-board">
       <section className="bracket-section">
         <h3 className="bracket-title bracket-title--upper">Chave Superior</h3>
-        <div className="bracket-columns" ref={upperColumnsRef}>
+        <div className="bracket-columns">
           {uRounds.map((r) => (
             <BracketColumn
               key={`u-${r}`}
@@ -85,13 +83,13 @@ export function BracketBoard({ category, onMatchClick, onSetMatchTime }: Bracket
               incomingRefs={incomingRefs}
             />
           ))}
-          <BracketConnectors containerRef={upperColumnsRef} matches={upperMatches} />
+          <BracketConnectors matches={upperMatches} />
         </div>
       </section>
 
       <section className="bracket-section">
         <h3 className="bracket-title bracket-title--lower">Chave Inferior</h3>
-        <div className="bracket-columns" ref={lowerColumnsRef}>
+        <div className="bracket-columns">
           {lRounds.map((r) => (
             <BracketColumn
               key={`l-${r}`}
@@ -104,7 +102,7 @@ export function BracketBoard({ category, onMatchClick, onSetMatchTime }: Bracket
               incomingRefs={incomingRefs}
             />
           ))}
-          <BracketConnectors containerRef={lowerColumnsRef} matches={lowerMatches} />
+          <BracketConnectors matches={lowerMatches} />
         </div>
       </section>
 
