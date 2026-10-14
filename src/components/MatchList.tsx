@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import type { Category, Match } from '../types';
 import {
   buildIncomingRefMap,
+  eliminatedTeamIn,
   getTeamName,
   isByeMatch,
   lowerRoundLabel,
@@ -85,6 +86,7 @@ export function MatchList({ category, onMatchClick }: MatchListProps) {
               const clickable = (m.status === 'ready' || m.status === 'done') && Boolean(onMatchClick);
               const aWon = m.status === 'done' && m.winnerId === m.teamAId;
               const bWon = m.status === 'done' && m.winnerId === m.teamBId;
+              const out = eliminatedTeamIn(m);
               return (
                 <tr
                   key={m.id}
@@ -94,9 +96,15 @@ export function MatchList({ category, onMatchClick }: MatchListProps) {
                   <td className="match-list-num">#{m.matchNumber}</td>
                   <td className="match-list-phase">{phaseLabel(m)}</td>
                   <td>
-                    <span className={aWon ? 'match-list-winner' : undefined}>{sideName(m, 'A')}</span>
+                    <span className={aWon ? 'match-list-winner' : undefined}>
+                      {out !== null && out === m.teamAId && <span className="eliminated-mark" title="Eliminada do torneio">❌ </span>}
+                      {sideName(m, 'A')}
+                    </span>
                     <span className="match-list-vs"> x </span>
-                    <span className={bWon ? 'match-list-winner' : undefined}>{sideName(m, 'B')}</span>
+                    <span className={bWon ? 'match-list-winner' : undefined}>
+                      {out !== null && out === m.teamBId && <span className="eliminated-mark" title="Eliminada do torneio">❌ </span>}
+                      {sideName(m, 'B')}
+                    </span>
                   </td>
                   <td className="match-list-time">{m.startTime ?? '—'}</td>
                   <td className="match-list-status">

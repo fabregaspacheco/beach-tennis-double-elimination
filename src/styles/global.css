@@ -945,6 +945,11 @@ button {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.eliminated-mark {
+  flex-shrink: 0;
+  font-size: 0.6rem;
+  line-height: 1;
+}
 .skip-r1-badge {
   flex-shrink: 0;
   font-size: 0.6rem;

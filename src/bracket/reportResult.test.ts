@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { generateDoubleElimination } from './generateBracket';
 import { clearMatchResult, reportResult } from './reportResult';
-import { isByeMatch } from './helpers';
+import { eliminatedTeamIn, isByeMatch } from './helpers';
 import type { Category, Team } from '../types';
 
 function makeTeams(n: number): Team[] {
@@ -123,5 +123,42 @@ describe('clearMatchResult — desfazer partidas que alimentam um BYE em cadeia'
     expect(legacy.status).not.toBe('done');
     expect(legacy.winnerId).toBeNull();
     expect(legacy.teamAId).toBeNull();
+  });
+});
+
+describe('eliminatedTeamIn — partida em que a dupla foi eliminada', () => {
+  // Pseudo-random but deterministic, so every run checks the same varied outcomes (upper and
+  // lower champions both winning the grand final, with and without reset).
+  function playOutVaried(category: Category, seed: number): Category {
+    let cat = category;
+    let x = seed;
+    for (let guard = 0; !cat.championTeamId; guard++) {
+      if (guard > 500) throw new Error('Simulação não convergiu.');
+      const ready = cat.matches.find((m) => m.status === 'ready')!;
+      x = (x * 1103515245 + 12345) % 2147483648;
+      const aWins = x % 2 === 0;
+      cat = reportResult(cat, { matchId: ready.id, scoreA: aWins ? 6 : 3, scoreB: aWins ? 3 : 6 });
+    }
+    return cat;
+  }
+
+  it.each([2, 3, 5, 8, 11, 16])('N=%i: toda dupla menos a campeã é eliminada em exatamente uma partida, na 2ª derrota', (n) => {
+    for (let seed = 1; seed <= 20; seed++) {
+      const cat = playOutVaried(makeCategory(n), seed);
+      const counts = new Map<string, number>();
+      for (const m of cat.matches) {
+        const out = eliminatedTeamIn(m);
+        if (out) counts.set(out, (counts.get(out) ?? 0) + 1);
+      }
+      for (const t of cat.teams) {
+        const losses = cat.matches.filter((m) => m.status === 'done' && m.loserId === t.id).length;
+        if (t.id === cat.championTeamId) {
+          expect(counts.has(t.id)).toBe(false);
+        } else {
+          expect(counts.get(t.id)).toBe(1);
+          expect(losses).toBe(2);
+        }
+      }
+    }
   });
 });

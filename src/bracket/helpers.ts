@@ -136,6 +136,16 @@ export function isEliminated(category: Category, teamId: string): boolean {
   return lossesFor(category, teamId) >= 2;
 }
 
+/** The team knocked out of the tournament by this match (its second loss), or null. An upper-bracket
+ *  loss never eliminates; any real lower-bracket loss does; in the grand final only the side that
+ *  came up from the lower bracket (slot B) is out on a loss — the upper champion gets the reset. */
+export function eliminatedTeamIn(match: Match): string | null {
+  if (match.status !== 'done' || !match.loserId) return null;
+  if (match.bracket === 'upper') return null;
+  if (match.bracket === 'grandFinal') return match.loserId === match.teamBId ? match.loserId : null;
+  return match.loserId;
+}
+
 export function upperRounds(category: Category): number[] {
   const rounds = new Set(category.matches.filter((m) => m.bracket === 'upper').map((m) => m.round));
   return [...rounds].sort((a, b) => a - b);

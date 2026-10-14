@@ -1,5 +1,5 @@
 import type { Category, Match } from '../types';
-import { getTeamName, isByeMatch, slotLabel, type IncomingRef } from '../bracket/helpers';
+import { eliminatedTeamIn, getTeamName, isByeMatch, slotLabel, type IncomingRef } from '../bracket/helpers';
 import { QUARTER_HOUR_TIMES } from '../utils/time';
 
 interface MatchCardProps {
@@ -30,6 +30,9 @@ export function MatchCard({ category, match, onClick, onSetTime, incomingRefs }:
       : slotLabel(match.id, 'B', incomingRefs);
   const aWon = match.status === 'done' && match.winnerId === match.teamAId;
   const bWon = match.status === 'done' && match.winnerId === match.teamBId;
+  const eliminatedId = eliminatedTeamIn(match);
+  const outA = eliminatedId !== null && eliminatedId === match.teamAId;
+  const outB = eliminatedId !== null && eliminatedId === match.teamBId;
   // Flagged even after the name resolves — a BYE already gets its own round-1 slot, but this side
   // has none at all, having dropped straight from the upper bracket into round 2 or later.
   const skippedA = incomingRefs.get(`${match.id}:A`)?.skippedRoundOne ?? false;
@@ -68,6 +71,7 @@ export function MatchCard({ category, match, onClick, onSetTime, incomingRefs }:
       >
         <div className={`team-row${aWon ? ' team-row--winner' : ''}${match.teamAId ? '' : ' team-row--tbd'}`}>
           <span className="team-name-wrap">
+            {outA && <EliminatedMark />}
             <span className="team-name">{nameA}</span>
             {skippedA && (
               <span className="skip-r1-badge" title="Caiu direto da chave superior - Não jogou as últimas rodadas até aqui da chave inferior.">
@@ -79,6 +83,7 @@ export function MatchCard({ category, match, onClick, onSetTime, incomingRefs }:
         </div>
         <div className={`team-row${bWon ? ' team-row--winner' : ''}${match.teamBId ? '' : ' team-row--tbd'}`}>
           <span className="team-name-wrap">
+            {outB && <EliminatedMark />}
             <span className="team-name">{nameB}</span>
             {skippedB && (
               <span className="skip-r1-badge" title="Caiu direto da chave superior - Não jogou as últimas rodadas até aqui da chave inferior.">
@@ -90,5 +95,14 @@ export function MatchCard({ category, match, onClick, onSetTime, incomingRefs }:
         </div>
       </button>
     </div>
+  );
+}
+
+/** Marks the team knocked out of the tournament by this match (its second loss). */
+function EliminatedMark() {
+  return (
+    <span className="eliminated-mark" title="Eliminada do torneio" aria-label="Eliminada do torneio">
+      ❌
+    </span>
   );
 }
