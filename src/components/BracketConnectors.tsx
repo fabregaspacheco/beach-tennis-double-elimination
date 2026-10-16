@@ -100,6 +100,21 @@ export function BracketConnectors({ matches }: BracketConnectorsProps) {
         } else if (skipsColumn && !blockedAt(y1)) {
           const dropX = x2 - 10;
           linePath = `M ${x1} ${y1} L ${dropX} ${y1} L ${dropX} ${y2} L ${tipX - ARROW_LENGTH} ${y2}`;
+        } else if (skipsColumn) {
+          // Both rows are taken by cards in the skipped column(s) (e.g. source and target level with
+          // a card sitting between them): a straight line would run right through that card. Detour
+          // under it instead — down next to the source, across the first free row below, and back
+          // up to the target's row just before it.
+          let detourY = Math.max(y1, y2);
+          for (let guard = 0; blockedAt(detourY) && guard < 50; guard++) {
+            const blocking = cards.filter(
+              (c) => c.left >= nextColumnLeft - 1 && c.left < x2 - 1 && detourY > c.top - 4 && detourY < c.bottom + 4,
+            );
+            detourY = Math.max(...blocking.map((c) => c.bottom)) + 8;
+          }
+          const outX = x1 + 4;
+          const backX = x2 - 10;
+          linePath = `M ${x1} ${y1} L ${outX} ${y1} L ${outX} ${detourY} L ${backX} ${detourY} L ${backX} ${y2} L ${tipX - ARROW_LENGTH} ${y2}`;
         } else if (y1 === y2) {
           linePath = `M ${x1} ${y1} L ${tipX - ARROW_LENGTH} ${y2}`;
         } else {
