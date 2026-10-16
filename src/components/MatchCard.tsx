@@ -62,6 +62,11 @@ export function MatchCard({ category, match, onClick, onSetTime, incomingRefs }:
           ))}
         </select>
       )}
+      {!showAsBye && !onSetTime && match.startTime && (
+        <span className="match-time-badge" title="Horário da partida">
+          🕒 {match.startTime}
+        </span>
+      )}
       <button
         type="button"
         data-match-id={match.id}

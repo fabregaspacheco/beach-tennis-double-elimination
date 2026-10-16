@@ -851,6 +851,23 @@ button {
   cursor: pointer;
 }
 
+/* Read-only version of the time picker above, for whoever can't edit (visitors, or a concluded
+   tournament): same spot and size, only shown when a time was actually set. */
+.match-time-badge {
+  position: absolute;
+  top: -8px;
+  right: 10px;
+  z-index: 1;
+  padding: 0 5px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  font-size: 0.62rem;
+  line-height: 1.4;
+  font-weight: 600;
+  color: var(--ink);
+  background: white;
+}
+
 .match-time-input:hover,
 .match-time-input:focus {
   opacity: 1;
