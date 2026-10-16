@@ -429,13 +429,16 @@ export function generateDoubleElimination(categoryId: string, teams: Team[]): Ma
   const finalist = pool[0];
   byId.get(finalist.matchId)![finalist.field] = { matchId: 'GF', slot: 'B' };
 
-  // 16 teams: the semifinal losers drop, by default, onto the side of the lower bracket holding the
-  // round-2 losers they themselves beat (seen in a real tournament), so #13's and #14's loser slots
-  // are swapped. That trades it for a possible round-1 rematch instead, which the organizer
-  // accepted as further back and less likely.
-  if (N === 16) {
-    const sf1 = byId.get(upperId(3, 1))!;
-    const sf2 = byId.get(upperId(3, 2))!;
+  // By default the two semifinal losers drop onto the side of the lower bracket holding the teams
+  // they themselves just beat, so for these sizes their loser slots are swapped (seen in real
+  // tournaments). It trades that for a possible rematch of an older game instead, which the
+  // organizer accepted as further back and less likely:
+  // - 16 teams (#13/#14): avoids repeating an upper round-2 game; a round-1 rematch remains possible.
+  // - 18 teams (#29/#30): avoids repeating a quarterfinal; a round-2 rematch (#17/#21) remains possible.
+  if (N === 16 || N === 18) {
+    const semifinalRound = n - 1;
+    const sf1 = byId.get(upperId(semifinalRound, 1))!;
+    const sf2 = byId.get(upperId(semifinalRound, 2))!;
     [sf1.nextMatchLoser, sf2.nextMatchLoser] = [sf2.nextMatchLoser, sf1.nextMatchLoser];
   }
 
