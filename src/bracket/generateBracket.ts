@@ -14,6 +14,9 @@ interface PendingSource {
  *  can never stall the draw — past it, the best arrangement found so far is used. */
 const ALIGN_BUDGET = 20000;
 
+/** Team counts whose semifinal loser drops are swapped — see the comment where it's applied. */
+const SWAP_SEMIFINAL_DROPS = new Set([11, 14, 15, 16, 18, 19, 20]);
+
 /**
  * Builds a full double-elimination bracket (upper bracket, lower bracket, grand final and
  * grand-final reset) for any number of teams >= 2.
@@ -429,13 +432,13 @@ export function generateDoubleElimination(categoryId: string, teams: Team[]): Ma
   const finalist = pool[0];
   byId.get(finalist.matchId)![finalist.field] = { matchId: 'GF', slot: 'B' };
 
-  // By default the two semifinal losers drop onto the side of the lower bracket holding the teams
-  // they themselves just beat, so for these sizes their loser slots are swapped (seen in real
-  // tournaments). It trades that for a possible rematch of an older game instead, which the
-  // organizer accepted as further back and less likely:
-  // - 16 teams (#13/#14): avoids repeating an upper round-2 game; a round-1 rematch remains possible.
-  // - 18 teams (#29/#30): avoids repeating a quarterfinal; a round-2 rematch (#17/#21) remains possible.
-  if (N === 16 || N === 18) {
+  // For these sizes the two semifinal losers drop, by default, onto the side of the lower bracket
+  // holding teams they beat in the round just before the semifinal (seen in real tournaments), so
+  // their loser slots are swapped. In simulated playouts that cuts how often the drop match repeats
+  // that most recent game (e.g. 16: 22% -> 0%, 18: 19% -> 0%, 11: 47% -> 12%, 20: 41% -> 0%), at the
+  // cost of a likelier rematch of an older game, which the organizer accepted as further back.
+  // 10 and 13 teams are deliberately left out: there the swap makes it worse.
+  if (SWAP_SEMIFINAL_DROPS.has(N)) {
     const semifinalRound = n - 1;
     const sf1 = byId.get(upperId(semifinalRound, 1))!;
     const sf2 = byId.get(upperId(semifinalRound, 2))!;

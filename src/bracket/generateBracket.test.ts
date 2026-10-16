@@ -633,10 +633,35 @@ describe('11 duplas — a Rodada 3 da chave inferior junta os vencedores que nã
   );
 });
 
-describe('16 e 18 duplas — queda dos perdedores das semifinais', () => {
-  // Pedido do organizador: o perdedor de cada semifinal não pode cair do lado da chave inferior
-  // que traz quem ele acabou de eliminar na rodada anterior. Visto no Feminino B 15/10 (16 duplas:
-  // #13/#14 x perdedores da rodada 2) e repetido para 18 duplas (#29/#30 x perdedores das quartas).
+describe('queda dos perdedores das semifinais (8 a 20 duplas)', () => {
+  // Pedido do organizador: o perdedor de uma semifinal não deve cair do lado da chave inferior que
+  // traz quem ele acabou de eliminar na rodada anterior. Para 11, 14, 15, 16, 18, 19 e 20 duplas a
+  // queda das duas semifinais é trocada (visto no Feminino B 15/10, com 16 duplas); 10 e 13 ficam
+  // como estão de propósito, porque lá a troca piora. Tabela: [duplas, semi 1, cai em, semi 2, cai em].
+  it.each([
+    [8, 5, 11, 6, 10],
+    [9, 13, 20, 14, 20],
+    [10, 13, 21, 14, 20],
+    [11, 13, 21, 14, 22],
+    [12, 13, 23, 14, 22],
+    [13, 13, 24, 14, 23],
+    [14, 13, 24, 14, 25],
+    [15, 13, 25, 14, 26],
+    [16, 13, 26, 14, 27],
+    [17, 29, 44, 30, 44],
+    [18, 29, 44, 30, 45],
+    [19, 29, 45, 30, 46],
+    [20, 29, 46, 30, 47],
+  ])('N=%i: perdedor #%i cai na #%i, perdedor #%i cai na #%i', (n, sf1, drop1, sf2, drop2) => {
+    const teams = Array.from({ length: n }, (_, i) => ({ id: `T${i + 1}`, name: `Dupla ${i + 1}` }));
+    const matches = generateDoubleElimination(`cat-${n}`, teams);
+    const byNumber = new Map(matches.map((m) => [m.matchNumber, m]));
+    const dropOf = (num: number) => matches.find((m) => m.id === byNumber.get(num)!.nextMatchLoser!.matchId)!.matchNumber;
+    expect(dropOf(sf1)).toBe(drop1);
+    expect(dropOf(sf2)).toBe(drop2);
+  });
+
+  // 16 e 18 duplas: com a troca, a queda fica totalmente livre de repetir o jogo mais recente.
   it.each([
     [16, 'U-R3', 'U-R2'],
     [18, 'U-R4', 'U-R3'],
