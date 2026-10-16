@@ -429,6 +429,16 @@ export function generateDoubleElimination(categoryId: string, teams: Team[]): Ma
   const finalist = pool[0];
   byId.get(finalist.matchId)![finalist.field] = { matchId: 'GF', slot: 'B' };
 
+  // 16 teams: the semifinal losers drop, by default, onto the side of the lower bracket holding the
+  // round-2 losers they themselves beat (seen in a real tournament), so #13's and #14's loser slots
+  // are swapped. That trades it for a possible round-1 rematch instead, which the organizer
+  // accepted as further back and less likely.
+  if (N === 16) {
+    const sf1 = byId.get(upperId(3, 1))!;
+    const sf2 = byId.get(upperId(3, 2))!;
+    [sf1.nextMatchLoser, sf2.nextMatchLoser] = [sf2.nextMatchLoser, sf1.nextMatchLoser];
+  }
+
   // Clean up the placeholder refs on upper matches that never got a real arrival wired (byes).
   for (const m of matches) {
     if (m.nextMatchLoser?.matchId === '') m.nextMatchLoser = undefined;

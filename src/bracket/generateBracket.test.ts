@@ -632,3 +632,30 @@ describe('11 duplas — a Rodada 3 da chave inferior junta os vencedores que nã
     },
   );
 });
+
+describe('16 duplas — queda dos perdedores das semifinais', () => {
+  // Pedido do organizador (Feminino B 15/10): o perdedor da #13 não pode cair do lado da chave
+  // inferior que traz os perdedores da rodada 2 que ele mesmo eliminou (#9/#10), e o mesmo para a #14.
+  it('o perdedor de cada semifinal cai do lado oposto aos perdedores da rodada 2 do seu caminho', () => {
+    const teams = Array.from({ length: 16 }, (_, i) => ({ id: `T${i + 1}`, name: `Dupla ${i + 1}` }));
+    const matches = generateDoubleElimination('cat-16', teams);
+    const byId = new Map(matches.map((m) => [m.id, m]));
+    // Every lower match a team dropping from `upperId` can go on to play.
+    const lowerPathOfLoser = (upperId: string) => {
+      const path = new Set<string>();
+      let cur = byId.get(upperId)!.nextMatchLoser?.matchId;
+      while (cur && byId.get(cur)!.bracket === 'lower') {
+        path.add(cur);
+        cur = byId.get(cur)!.nextMatchWinner?.matchId;
+      }
+      return path;
+    };
+    for (const [sf, r2] of [
+      ['U-R3-M1', ['U-R2-M1', 'U-R2-M2']],
+      ['U-R3-M2', ['U-R2-M3', 'U-R2-M4']],
+    ] as const) {
+      const sfDrop = byId.get(sf)!.nextMatchLoser!.matchId;
+      for (const r2Match of r2) expect(lowerPathOfLoser(r2Match).has(sfDrop)).toBe(false);
+    }
+  });
+});
